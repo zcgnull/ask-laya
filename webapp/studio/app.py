@@ -32,18 +32,33 @@ _ensure_deps()
 import laya  # noqa: E402
 
 
+MODEL_CANDIDATES = [
+    ("zcgnull/laya-zh-v2", None),                    # 中文微调版（首选）
+    ("convaiinnovations/laya", "multilingual"),      # 官方 multilingual（回退）
+]
+
+
 def _load_agent():
-    """ModelScope 站内下载优先（站内加速），失败回退 HF。"""
+    """ModelScope 站内下载优先（站内加速），失败回退 HF；逐个候选尝试。"""
     override = os.environ.get("ASK_LAYA_MODEL_DIR")
     if override:
         return laya.load(override)
-    try:
-        from modelscope import snapshot_download as ms_dl
-        d = ms_dl("convaiinnovations/laya", allow_patterns=["multilingual/*"])
-        return laya.load(os.path.join(d, "multilingual"))
-    except Exception as e:  # noqa: BLE001
-        print(f"[ask-laya] modelscope download failed ({e}), fallback to HF", flush=True)
-        return laya.load("convaiinnovations/laya", subfolder="multilingual")
+    errors = []
+    for repo_id, sub in MODEL_CANDIDATES:
+        try:
+            from modelscope import snapshot_download as ms_dl
+            d = ms_dl(repo_id, allow_patterns=[f"{sub}/*"] if sub else None)
+            path = os.path.join(d, sub) if sub else d
+            return laya.load(path)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"{repo_id}: {e}")
+            print(f"[ask-laya] modelscope load {repo_id} failed ({e})", flush=True)
+        try:
+            return laya.load(repo_id, subfolder=sub)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"HF {repo_id}: {e}")
+            print(f"[ask-laya] HF load {repo_id} failed ({e})", flush=True)
+    raise RuntimeError("all model candidates failed: " + "; ".join(errors))
 
 
 print("[ask-laya] loading model ...", flush=True)
@@ -57,7 +72,7 @@ print(f"[ask-laya] ready in {time.time() - _t0:.0f}s on {AGENT.device}", flush=T
 import server  # noqa: E402
 
 server._state["agent"] = AGENT
-server._state["label"] = "laya-multilingual"
+server._state["label"] = "laya-zh-v2 (中文微调)"
 app = server.app
 
 # 平台代理要求根路径呈现 gradio 前端：用最小 Blocks 壳全屏内嵌我们的原味页面
