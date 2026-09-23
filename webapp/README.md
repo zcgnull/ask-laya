@@ -67,13 +67,13 @@ laya 0.3.7 新增 `laya-serve`（TypeSafe Jev 的 `/v1/systemone` 线协议）�
 webapp/
   server.py        # FastAPI：加载 laya agent，POST /api/ask，GET /api/about，托管静态页
   static/index.html # 单页前端（内联 CSS/JS，零依赖）
-  studio/          # ModelScope 创空间版（Gradio，逻辑与 server.py 同源）
+  studio/          # ModelScope 创空间版（gradio 壳内嵌原味页面，逻辑与 server.py 同源）
   deploy_studio.sh # 一键部署到创空间：MODELSCOPE_API_KEY=xx bash deploy_studio.sh
 ```
 
 ## 线上部署
 
-- **ModelScope 创空间**：<https://modelscope.cn/studios/zcgnull/ask-laya>（公开，gradio 6，免费 2vCPU/8G，模型启动时自动从 ModelScope 下载，CPU 裁决约 100ms）
+- **ModelScope 创空间**：<https://modelscope.cn/studios/zcgnull/ask-laya>（公开，免费 2vCPU/8G；现已改用中文微调模型 [zcgnull/laya-zh-v2](https://modelscope.cn/models/zcgnull/laya-zh-v2)，站内下载，CPU 裁决约 100-400ms）
 - **本地/FRP 公网**：<http://39.98.88.195:18081>（FastAPI 原味前端版，依赖本机在线）
 
 更新创空间代码：改 `studio/` 后重跑 `deploy_studio.sh` 即可（脚本已处理平台初始提交的合并）。
