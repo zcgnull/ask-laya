@@ -1,0 +1,1 @@
+{"choice": {"accuracy": 0.359375, "macro_f1": 0.309, "false_action": "0/32", "missed_action": "28/32", "p50_ms": 56}, "four_noul": {"accuracy": 0.265625, "macro_f1": 0.132, "false_action": "0/32", "missed_action": "30/32", "p50_ms": 149}}

@@ -86,3 +86,42 @@ python scripts/eval_cn.py --model models/laya-zh --tag zh-finetuned  # 微调后
 有 CUDA GPU 时去掉 `--freeze-embeddings`、调大 `--micro-batch`，可完全对齐官方配置。
 
 原始评估 JSON：`results/eval_ml-base.json`、`results/eval_zh-finetuned.json`、`results/eval_en-base-on-cn.json`、`results/verify_results.json`；训练日志：`models/finetune.log`。
+
+
+---
+
+## 5. 官方中文基准迭代（feishu_zh，2026-09 追加）
+
+laya 上游新增官方中文基准 `research/benchmarks/feishu_zh`（64 条飞书式职场消息，8 错误家族 × 4 均衡标签，
+choice 四分类 + 4 个是非题按规则解码，冻结 prompt，3 repeats 取首次）。我们用它作为"官方评测方法"对
+各版本做了完整对比。
+
+### 5.1 定向语料
+
+`scripts/build_feishu_train.py`：按基准文档描述的 8 个错误家族（ownership/lifecycle/urgency/knowledge/
+conditional/untrusted_content/thread_context/cross_chat）**全新生成**同分布训练场景（飞书式多群消息、
+不同人物/角色/群名，不复制任何评测 case），prompt 直接使用官方冻结版。生成后按 4 标签均衡重采样。
+
+### 5.2 迭代结果（官方协议：64 case × 2 模式 × 3 repeats，取首次）
+
+| 版本 | 训练数据 | choice 准确率 | four_noul 准确率 | choice macro-F1 |
+|---|---|---|---|---|
+| 基座 multilingual（零样本） | — | 31.2% | 28.1% | 0.257 |
+| V1 = laya-zh（客服模板数据） | 1200 客服行 | 37.5% | 42.2% | 0.336 |
+| **V2 = laya-zh-v2（最优）** | 客服 1200 行 + 分诊 700 cases | **51.6%** | 39.1% | **0.482** |
+| V3 = laya-zh-v3 | 客服 1200 行 + 分诊 1200 cases（新种子） | 35.9% | 26.6% | 0.309 |
+
+（官方档案记录的基座成绩为 choice 20/64、four_noul 18/64，与我们复测的 31.2%/28.1% 同为接近随机的水平。）
+
+其他指标：V2 的误报动作仅 **1/32**（基座 22/32）、four_noul 误报动作 **0/32**；自建集无回退（整体 90.9%）。
+
+### 5.3 迭代发现
+
+1. **定向合成语料是最大杠杆**：V1→V2 仅增加 700 个同分布场景，choice +14pp。
+2. **同模板数据翻倍反而伤害泛化**：V3 把 cases 从 700 翻倍到 1200（同模板、新种子），choice 掉到 35.9%——
+   模板表面记忆淹没了语义学习。后续提升应换"更真实的语料源"（如脱敏真实 IM 语料或 LLM 生成的多样表述），
+   而不是加量同模板。
+3. **four_noul 是剩余短板**：解码规则要求 related/action≥0.5 且 urgent≥0.75 才判 urgent，V2 漏动作 25-28/32
+   主要卡在 urgent 阈值。可选手段：按 four_noul 的解码阈值做阈值级校准（而非温度），或增大 urgent 密度。
+4. 训练资源：V2 用 `--micro-batch 4 --grad-accum 4 --max-len 512 --threads 4`（内存受限参数，M4 16GB 稳定
+   运行约 70 分钟）；微调期间建议停掉本机 webapp 服务以让出统一内存。

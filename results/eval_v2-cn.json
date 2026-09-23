@@ -1,0 +1,78 @@
+{
+  "tag": "v2-cn",
+  "model": "models/laya-zh-v2",
+  "subfolder": null,
+  "device": "mps",
+  "template": {
+    "choice": {
+      "n": 260,
+      "accuracy": 1.0,
+      "ece": 0.1403,
+      "mean_confidence": 0.8597,
+      "brier": 0.0001,
+      "top2_accuracy": 1.0
+    },
+    "score": {
+      "n": 260,
+      "accuracy": 0.7577,
+      "ece": 0.1352,
+      "mean_confidence": 0.6224,
+      "brier": 0.2851,
+      "mae": 0.2893
+    },
+    "noul": {
+      "n": 260,
+      "accuracy": 0.9692,
+      "ece": 0.0233,
+      "mean_confidence": 0.946,
+      "brier": 0.0261
+    },
+    "overall": {
+      "n_decisions": 780,
+      "accuracy": 0.909,
+      "ece": 0.0996
+    },
+    "latency": {
+      "total_s": 13.01,
+      "ms_per_case": 50.0,
+      "ms_per_decision": 16.7,
+      "input_tokens_per_case": 273.7
+    }
+  },
+  "hard": {
+    "choice": {
+      "n": 80,
+      "accuracy": 0.625,
+      "ece": 0.2481,
+      "mean_confidence": 0.5075,
+      "brier": 0.5664,
+      "top2_accuracy": 0.8375
+    },
+    "score": {
+      "n": 80,
+      "accuracy": 0.25,
+      "ece": 0.1792,
+      "mean_confidence": 0.4237,
+      "brier": 0.913,
+      "mae": 0.874
+    },
+    "noul": {
+      "n": 80,
+      "accuracy": 0.775,
+      "ece": 0.1641,
+      "mean_confidence": 0.9264,
+      "brier": 0.1766
+    },
+    "overall": {
+      "n_decisions": 240,
+      "accuracy": 0.55,
+      "ece": 0.1687
+    },
+    "latency": {
+      "total_s": 4.11,
+      "ms_per_case": 51.4,
+      "ms_per_decision": 17.1,
+      "input_tokens_per_case": 284.1
+    }
+  }
+}

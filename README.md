@@ -106,6 +106,18 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 训练开销：Apple M4 单机 **约 16 分钟**（3 epoch / 3600 决策，冻结 256k 词表 embedding + 梯度检查点）；推理速度不受影响（MPS 16.5ms/决策）。
 
+### 官方中文基准（feishu_zh）多版本迭代
+
+| 版本 | choice 准确率 | four_noul 准确率 |
+|---|---|---|
+| 基座 multilingual 零样本 | 31.2% | 28.1% |
+| V1 客服模板微调 | 37.5% | 42.2% |
+| **V2 + 定向分诊语料 700 cases** | **51.6%**（macro-F1 0.482，误报动作 1/32） | 39.1% |
+| V3 语料翻倍至 1200 cases | 35.9%（模板过拟合，反例） | 26.6% |
+
+评测使用上游官方协议：`research/feishu_zh` 64 条冻结场景 × choice/four_noul × 3 repeats。
+详见 [docs/finetune_report.md](docs/finetune_report.md) 第 5 节。
+
 ## 项目结构
 
 ```

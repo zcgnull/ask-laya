@@ -106,8 +106,10 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "models", "laya-zh"))
     ap.add_argument("--train", default=os.path.join(ROOT, "data", "cn_train.jsonl"))
     ap.add_argument("--epochs", type=int, default=3)
-    ap.add_argument("--micro-batch", type=int, default=8)
-    ap.add_argument("--grad-accum", type=int, default=2)
+    ap.add_argument("--micro-batch", type=int, default=4)
+    ap.add_argument("--grad-accum", type=int, default=4)
+    ap.add_argument("--max-len", type=int, default=None, help="覆盖 cfg max_len（截断序列，显著省内存）")
+    ap.add_argument("--threads", type=int, default=4, help="torch 线程数上限（防 CPU 过订阅）")
     ap.add_argument("--group-size", type=int, default=4)
     ap.add_argument("--lr-encoder", type=float, default=2.5e-5)
     ap.add_argument("--lr-head", type=float, default=1e-4)
@@ -121,6 +123,7 @@ def main():
     from laya.agent import _fix_tokenizer_config
     from laya.common import build_model, proper_reward
 
+    torch.set_num_threads(args.threads)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -173,6 +176,9 @@ def main():
     print("loading train rows...")
     with open(args.train, encoding="utf-8") as f:
         rows = [json.loads(line) for line in f if line.strip()]
+    if args.max_len:
+        cfg = {**cfg, "max_len": args.max_len}
+        print(f"max_len overridden to {args.max_len} for memory", flush=True)
     items = build_items(rows, tok, cfg)
     print("built %d training items from %d rows" % (len(items), len(rows)))
 

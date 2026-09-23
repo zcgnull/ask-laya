@@ -1,0 +1,157 @@
+{
+  "backend": "laya",
+  "started_at": "2026-09-23T14:45:58.866972+00:00",
+  "cases_sha256": "c85184ee38378e1bfc79ec221aab8688a31ef1c50a3b8fb4e120d73d5fde8ebc",
+  "requests_sha256": "8bfd7879f0974a762315be87f1d62c026c94ebf8699f69cd1c806b9767ac9cb9",
+  "evaluated_ids": [
+    "ownership-01",
+    "ownership-02",
+    "ownership-03",
+    "ownership-04",
+    "ownership-05",
+    "ownership-06",
+    "ownership-07",
+    "ownership-08",
+    "lifecycle-01",
+    "lifecycle-02",
+    "lifecycle-03",
+    "lifecycle-04",
+    "lifecycle-05",
+    "lifecycle-06",
+    "lifecycle-07",
+    "lifecycle-08",
+    "urgency-01",
+    "urgency-02",
+    "urgency-03",
+    "urgency-04",
+    "urgency-05",
+    "urgency-06",
+    "urgency-07",
+    "urgency-08",
+    "knowledge-01",
+    "knowledge-02",
+    "knowledge-03",
+    "knowledge-04",
+    "knowledge-05",
+    "knowledge-06",
+    "knowledge-07",
+    "knowledge-08",
+    "conditional-01",
+    "conditional-02",
+    "conditional-03",
+    "conditional-04",
+    "conditional-05",
+    "conditional-06",
+    "conditional-07",
+    "conditional-08",
+    "untrusted_content-01",
+    "untrusted_content-02",
+    "untrusted_content-03",
+    "untrusted_content-04",
+    "untrusted_content-05",
+    "untrusted_content-06",
+    "untrusted_content-07",
+    "untrusted_content-08",
+    "thread_context-01",
+    "thread_context-02",
+    "thread_context-03",
+    "thread_context-04",
+    "thread_context-05",
+    "thread_context-06",
+    "thread_context-07",
+    "thread_context-08",
+    "cross_chat-01",
+    "cross_chat-02",
+    "cross_chat-03",
+    "cross_chat-04",
+    "cross_chat-05",
+    "cross_chat-06",
+    "cross_chat-07",
+    "cross_chat-08"
+  ],
+  "modes": [
+    "choice",
+    "four_noul"
+  ],
+  "repeats": 3,
+  "smoke_test": false,
+  "python": "3.13.4",
+  "os": "Darwin",
+  "architecture": "arm64",
+  "seed": 20260921,
+  "warmups": [
+    {
+      "mode": "choice",
+      "elapsed_ms": 418.2632910014945,
+      "usage": {
+        "input_tokens": 327,
+        "output_tokens": 0
+      }
+    },
+    {
+      "mode": "four_noul",
+      "elapsed_ms": 150.9591250014637,
+      "usage": {
+        "input_tokens": 988,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "runner_sha256": "1e73cc7fcc1eaa10fc2d5fc4ad4613d8af3776fac7d4339f171bf67142e2be8d",
+  "model": "laya-local",
+  "checkpoint_revision": null,
+  "checkpoint_config": {
+    "encoder": "jhu-clsp/mmBERT-base",
+    "head_layers": 2,
+    "max_len": 512,
+    "head_max_len": 256,
+    "max_prefixes": 6,
+    "act_costs": {
+      "escalate": 0.5
+    },
+    "cost_wrong_act": 3.0,
+    "amp_dtype": "bf16",
+    "model_name": "laya-zh",
+    "temperature": [
+      1.0221123695373535,
+      1.8245701789855957,
+      1.1718968152999878
+    ],
+    "temperature_by_options": {},
+    "training": {
+      "updates": 15987,
+      "epochs_completed": 4,
+      "hours": 4.97,
+      "world_size": 1,
+      "fine_tuned_from_checkpoint": false
+    },
+    "fine_tuned": true,
+    "base_checkpoint": "convaiinnovations/laya:multilingual",
+    "finetune_history": [
+      {
+        "epoch": 1,
+        "loss": 0.020849982695401486,
+        "sigma": 0.4,
+        "sec": 3017.6
+      },
+      {
+        "epoch": 2,
+        "loss": -0.005348351861369277,
+        "sigma": 0.09999999999999998,
+        "sec": 2936.8
+      }
+    ]
+  },
+  "checkpoint_model_sha256": "9d706b89300771f2457af0aa4f017c6c7a64e5b12f344894eee0c3d090c09b75",
+  "load_seconds": 4.4699507919995085,
+  "torch": "2.14.0",
+  "transformers": "5.17.0",
+  "device": "mps",
+  "cpu_threads": 2,
+  "laya_source_commit": "0eb5a03481b48b1ba52e97aab0797efed988254f",
+  "laya_source_files": {
+    "agent.py": "b1b05354a96626ebf5011c447502079e5ab7aad37e5133d396965bc8f974c1c7",
+    "common.py": "53425c08ac3b217d64b82db1677e9f9098fb7c87c1750c100b63a148bc119934"
+  },
+  "finished_at": "2026-09-23T14:46:47.419640+00:00"
+}
