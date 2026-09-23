@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问问 Laya · Ask Laya</title>
+<style>
+  :root {
+    --ink: #16130e;
+    --cream: #faf1dc;
+    --paper: #fffdf4;
+    --red: #d93a2b;
+    --gold: #f0b429;
+    --green: #2e7d46;
+    --blue: #1d3a8f;
+    --shadow: 4px 4px 0 var(--ink);
+    --shadow-sm: 2px 2px 0 var(--ink);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    background-image: radial-gradient(rgba(22,19,14,.06) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .display { font-family: ui-serif, Georgia, "Songti SC", serif; font-weight: 900; }
+  .mono { font-family: ui-monospace, monospace; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 10px 14px; border-bottom: 2px solid var(--ink);
+    background: var(--paper); overflow-x: auto; white-space: nowrap;
+  }
+  .brand { font-size: 18px; letter-spacing: .5px; display:flex; align-items:center; gap:8px; }
+  .logo {
+    width: 26px; height: 26px; border: 2px solid var(--ink); background: var(--red);
+    display: inline-flex; align-items: center; justify-content: center;
+    color:#fff; font-weight: 900; border-radius: 6px; box-shadow: var(--shadow-sm);
+  }
+  .btn {
+    font-weight: 800; font-size: 13px; padding: 7px 14px;
+    border: 2px solid var(--ink); border-radius: 8px; background: var(--paper);
+    box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .05s;
+    color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: #fff; }
+  .btn:active { transform: translate(2px,2px); box-shadow: none; }
+  .btn-primary { background: var(--red); color: #fff; font-size: 16px; padding: 12px 26px; box-shadow: var(--shadow); }
+  .btn-primary:hover { background: #c02f21; }
+  .btn-primary:disabled { opacity: .55; cursor: wait; }
+
+  main { max-width: 880px; margin: 0 auto; padding: 22px 16px 60px; }
+
+  .hero { text-align: center; margin-bottom: 18px; }
+  .hero h1 { font-size: clamp(34px, 7vw, 58px); color: var(--red); letter-spacing: -1px; }
+  .hero p { font-weight: 700; margin-top: 8px; font-size: clamp(14px, 2.5vw, 18px); }
+  .hero .mono { font-size: 12px; color: #6b6255; margin-top: 10px; }
+
+  .tabs { display: flex; gap: 10px; margin-bottom: 16px; }
+  .tab {
+    flex: 1; text-align: center; font-weight: 900; font-size: 15px; padding: 12px 8px;
+    border: 2px solid var(--ink); border-radius: 10px; background: var(--paper);
+    box-shadow: var(--shadow-sm); cursor: pointer; transition: all .1s;
+  }
+  .tab.active { background: var(--ink); color: var(--paper); box-shadow: var(--shadow); }
+  .tab small { display: block; font-weight: 600; font-size: 11px; opacity: .7; margin-top: 3px; }
+
+  .panel {
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 18px;
+  }
+
+  .modes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .mode {
+    font-weight: 800; font-size: 13px; padding: 7px 13px; cursor: pointer;
+    border: 2px solid var(--ink); border-radius: 999px; background: var(--paper); transition: all .1s;
+  }
+  .mode.active { background: var(--ink); color: var(--paper); box-shadow: var(--shadow-sm); }
+  .mode-hint { font-size: 12px; color: #6b6255; margin: -6px 0 12px; min-height: 16px; }
+
+  textarea, input[type=text] {
+    width: 100%; border: 2px solid var(--ink); border-radius: 8px; background: #fff;
+    padding: 12px; font-size: 15px; font-family: inherit; resize: vertical; outline: none;
+  }
+  textarea:focus, input:focus { box-shadow: var(--shadow-sm); }
+  textarea { min-height: 84px; }
+  #stateBox { min-height: 130px; font-family: ui-monospace, monospace; font-size: 13px; }
+  .context-row { margin-top: 10px; }
+  .actions { display: flex; gap: 12px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+
+  /* 结果卡 */
+  #verdict { margin-top: 22px; display: none; }
+  .verdict-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed rgba(0,0,0,.25); padding-bottom: 10px; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    font-size: 12px; font-weight: 900; padding: 4px 10px; border: 2px solid var(--ink);
+    border-radius: 6px; color: #fff; box-shadow: var(--shadow-sm); background: var(--gold); color: var(--ink);
+  }
+  .badge.green { background: var(--green); color: #fff; }
+  .badge.red { background: var(--red); color: #fff; }
+  .verdict-main { font-size: clamp(26px, 5vw, 40px); line-height: 1.15; margin: 6px 0 4px; }
+  .verdict-tag { display: inline-block; font-size: 13px; font-weight: 800; background: var(--ink); color: var(--paper); padding: 4px 10px; border-radius: 6px; margin: 6px 0 14px; }
+
+  .bars { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+  .bar-row { display: grid; grid-template-columns: 110px 1fr 56px; gap: 10px; align-items: center; font-size: 13px; font-weight: 700; }
+  .bar-track { height: 20px; border: 2px solid var(--ink); border-radius: 6px; background: #fff; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--gold); border-right: 2px solid var(--ink); min-width: 2px; transition: width .5s ease; }
+  .bar-row.winner .bar-fill { background: var(--green); }
+  .bar-row.winner .bar-label { color: var(--green); }
+  .bar-pct { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .reasoning { font-size: 14px; line-height: 1.7; background: var(--cream); border: 2px dashed rgba(0,0,0,.3); border-radius: 8px; padding: 12px 14px; margin-top: 6px; }
+  .verdict-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12px; color: #6b6255; font-family: ui-monospace, monospace; flex-wrap: wrap; gap: 8px; }
+
+  /* 场景实验室 */
+  .scen-desc { font-size: 13px; line-height: 1.7; color: #4a4438; background: var(--cream);
+    border: 2px dashed rgba(0,0,0,.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+  .hint { font-size: 12px; color: #6b6255; margin: -4px 0 10px; }
+  .exchips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .lab-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed rgba(0,0,0,.25); padding-bottom: 10px; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
+  #labResult { margin-top: 22px; display: none; }
+  .qa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 6px; }
+  .qa {
+    background: #fff; border: 2px solid var(--ink); border-radius: 10px;
+    box-shadow: var(--shadow-sm); padding: 12px 14px;
+  }
+  .qa-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 6px; }
+  .qa-name { font-weight: 900; font-size: 14px; }
+  .qa-type { font-size: 10px; font-weight: 900; padding: 2px 7px; border: 2px solid var(--ink); border-radius: 5px; background: var(--cream); }
+  .qa-type.noul { background: var(--green); color: #fff; }
+  .qa-type.score { background: var(--gold); }
+  .qa-ans { font-size: 19px; font-weight: 900; margin: 4px 0 10px; word-break: break-all; }
+  .qa-ans small { font-size: 12px; color: #6b6255; font-weight: 700; }
+  .qa .bar-row { grid-template-columns: 86px 1fr 48px; font-size: 11px; gap: 6px; margin-bottom: 5px; }
+  .qa .bar-track { height: 13px; border-width: 2px; }
+  .qa-meta { margin-top: 9px; font-size: 10px; color: #6b6255; font-family: ui-monospace, monospace; border-top: 1px dashed rgba(0,0,0,.2); padding-top: 6px; }
+
+  /* 自定义 schema 编辑器 */
+  .qrow { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; align-items: center; }
+  .qrow input, .qrow select {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 6px 8px;
+    font-size: 12px; background: #fff; outline: none; font-family: inherit;
+  }
+  .qrow input:focus, .qrow select:focus { box-shadow: var(--shadow-sm); }
+  .qrow .q-type { width: 84px; font-weight: 800; }
+  .qrow .q-id { width: 110px; font-weight: 700; }
+  .qrow .q-ins { flex: 3; min-width: 170px; }
+  .qrow .q-opts { flex: 2; min-width: 150px; font-family: ui-monospace, monospace; }
+  .qrow .q-del {
+    width: 34px; height: 32px; font-weight: 900; cursor: pointer;
+    border: 2px solid var(--ink); border-radius: 6px; background: var(--red); color: #fff;
+  }
+
+  /* 灵感 chips */
+  .topics { margin-top: 26px; }
+  .topics h3 { font-size: 14px; margin-bottom: 10px; border-left: 5px solid var(--red); padding-left: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 12px; font-weight: 700; padding: 6px 12px; cursor: pointer;
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; box-shadow: var(--shadow-sm);
+  }
+  .chip:hover { background: var(--gold); }
+  .chip:active { transform: translate(2px,2px); box-shadow: none; }
+
+  footer {
+    margin-top: 40px; padding: 14px; border-top: 2px dashed rgba(0,0,0,.3);
+    text-align: center; font-size: 12px; color: #6b6255; line-height: 1.9;
+  }
+  footer a { color: var(--blue); font-weight: 700; }
+
+  #loading { display: none; margin-top: 22px; text-align: center; padding: 26px; }
+  .dice { font-size: 34px; display: inline-block; animation: roll .7s infinite linear; }
+  @keyframes roll { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 99;
+    background: var(--paper); border: 2px solid var(--ink); box-shadow: var(--shadow);
+    padding: 8px 16px; font-weight: 800; font-size: 13px; border-radius: 8px; display: none; max-width: 90vw;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand display"><span class="logo">L</span> 问问 Laya</div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn" onclick="inspiration()">🎲 换条灵感</button>
+    <a class="btn" href="https://github.com/NandhaKishorM/laya" target="_blank" rel="noreferrer">GitHub</a>
+    <button class="btn" onclick="toast('Laya 是一个非自回归决策引擎：让 Laya 裁决、不生成文本、概率经 RLCD 校准。本站全部推理在你的设备上完成。')">关于</button>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1 class="display">Have a Question?</h1>
+    <p>专治日常纠结。敲下问题，让 Laya 裁决。</p>
+    <div class="mono" id="modelInfo">loading model…</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabFun" onclick="switchTab('fun')">🎮 生活裁决<small>该不该 / 选哪个 / 冲动指数</small></div>
+    <div class="tab" id="tabLab" onclick="switchTab('lab')">🧪 场景实验室<small>六大生产工作流 · 让 Laya 裁决</small></div>
+  </div>
+
+  <!-- ============ 玩法一：生活裁决 ============ -->
+  <div id="funPanel">
+    <div class="panel">
+      <div class="mode-hint" style="margin:0 0 6px; font-weight:800; color:var(--ink)">🔥 热门场景（点一个，把空填上就能问）</div>
+      <div class="modes" id="lifeChips" style="margin-bottom:10px"></div>
+      <div class="modes">
+        <button class="mode active" data-mode="yes_no" onclick="setMode('yes_no')">该不该？</button>
+        <button class="mode" data-mode="choice" onclick="setMode('choice')">选哪个？</button>
+        <button class="mode" data-mode="score" onclick="setMode('score')">冲动指数</button>
+      </div>
+      <div class="mode-hint" id="modeHint"></div>
+      <textarea id="question" placeholder="例：纠结要不要辞掉现在的工作去 Gap 半年…"></textarea>
+      <div class="context-row">
+        <input type="text" id="context" placeholder="补充背景（可选）：存款能撑一年 / 房租到期 / 家里催…">
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary display" id="askBtn" onclick="ask(false)">让 Laya 裁决</button>
+        <button class="btn" onclick="reset()">清空</button>
+      </div>
+    </div>
+
+    <div class="panel" id="loading"><span class="dice">⚖️</span><br><b>Laya 推理中…</b><br><span style="font-size:12px;color:#6b6255">约几十毫秒，马上就好</span></div>
+
+    <div class="panel" id="verdict">
+      <div class="verdict-head">
+        <span class="mono" id="vSign"></span>
+        <span class="badge" id="vBadge"></span>
+      </div>
+      <div class="verdict-main display" id="vMain"></div>
+      <div class="verdict-tag" id="vTag"></div>
+      <div class="bars" id="vBars"></div>
+      <div class="reasoning" id="vReason"></div>
+      <div class="verdict-foot">
+        <span id="vMeta"></span>
+        <button class="btn" onclick="ask(true)">重新裁决</button>
+      </div>
+    </div>
+
+    <div class="topics">
+      <h3 class="display">不知道问什么？试试这些</h3>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <!-- ============ 玩法二：场景实验室 ============ -->
+  <div id="labPanel" style="display:none">
+    <div class="panel">
+      <div class="modes" id="scenChips"></div>
+      <div class="scen-desc" id="scenDesc"></div>
+      <div class="hint" id="scenHint"></div>
+      <div id="customBuilder" style="display:none">
+        <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; align-items:center">
+          <span style="font-size:11px;color:#6b6255;font-weight:800">示例 schema：</span>
+          <span id="sampleChips" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+          <button class="btn" onclick="addQRow()" style="margin-left:auto">＋ 添加问题</button>
+        </div>
+        <div id="qRows"></div>
+      </div>
+      <textarea id="stateBox" spellcheck="false" placeholder=""></textarea>
+      <div class="exchips" id="exChips"></div>
+      <div class="actions">
+        <button class="btn btn-primary display" id="labBtn" onclick="runLab()">让 Laya 裁决</button>
+        <button class="btn" onclick="resetLab()">清空</button>
+      </div>
+    </div>
+
+    <div class="panel" id="labLoading" style="display:none"><span class="dice">🧪</span><br><b>推理中…</b></div>
+
+    <div class="panel" id="labResult">
+      <div class="lab-head">
+        <span class="mono" id="labSign"></span>
+        <span class="badge gold" id="labMeta"></span>
+      </div>
+      <div class="qa-grid" id="qaGrid"></div>
+      <div class="verdict-foot" style="margin-top:14px">
+        <span>💡 置信度可做代码级门控：阈值由你定，不是模型说了算</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <b>问问 Laya</b> —— 参考 <a href="https://github.com/kuhung/ask-jev" target="_blank" rel="noreferrer">ask-jev</a> 的简约实验，场景实验室对齐官方
+  <a href="https://modelscope.cn/studios/AI-ModelScope/laya-demo" target="_blank" rel="noreferrer">laya-demo</a>，后端是真实的
+  <a href="https://www.modelscope.cn/models/convaiinnovations/laya" target="_blank" rel="noreferrer">convaiinnovations/laya</a> 本地推理。<br>
+  概率输出仅供娱乐参考，重大决定请综合多方意见。无广告、无追踪、无 API Key。
+</footer>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+const HINTS = {
+  yes_no: "问一个「该不该做」的是非题，Laya 输出校准后的 P(值得做)。",
+  choice: "问题里写上你的候选（用「还是 / 或者 / 、」分隔），Laya 会给每个选项打分。",
+  score: "描述你的念头，Laya 评估冲动程度并换算为 1-10 的冲动指数。"
+};
+const TOPICS = [
+  { q: "该不该花三个月工资买一台顶配相机？", m: "yes_no" },
+  { q: "周末宅家还是出门爬山？", m: "choice" },
+  { q: "深夜十二点想点炸鸡加奶茶", m: "score" },
+  { q: "该不该报名 6800 元的线上写作课？", m: "yes_no" },
+  { q: "奶茶选芋泥波波还是生椰拿铁？", m: "choice" },
+  { q: "双十一直播间里想囤一年份的面膜", m: "score" },
+];
+const LIFE_SCENARIOS = [
+  { icon: "🛍️", label: "买不买", q: "该不该买____？" },
+  { icon: "🍜", label: "吃不吃", q: "深夜要不要点____？" },
+  { icon: "🤝", label: "去不去", q: "要不要去____？" },
+  { icon: "💬", label: "说不说", q: "要不要跟____说____？" },
+  { icon: "🚪", label: "辞不辞职", q: "该不该辞掉现在的工作？" },
+  { icon: "✈️", label: "去旅行", q: "该不该休年假去____旅行？" },
+  { icon: "🐱", label: "养宠物", q: "该不该领养一只猫？" },
+  { icon: "📚", label: "报班考证", q: "该不该报名____课程？" },
+  { icon: "📦", label: "断舍离", q: "该不该把____挂上闲鱼卖掉？" },
+];
+const MODELS = { yes_no: "是非法则", choice: "多选法则", score: "冲动度量衡" };
+const TYPE_ZH = { choice: "选择", score: "评分", noul: "是非" };
+let mode = "yes_no";
+let lastQuestion = "";
+let scenarios = [], curScen = null;
+
+const $ = (id) => document.getElementById(id);
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll(".mode").forEach((el) => el.classList.toggle("active", el.dataset.mode === m));
+  $("modeHint").textContent = HINTS[m];
+}
+function switchTab(t) {
+  $("tabFun").classList.toggle("active", t === "fun");
+  $("tabLab").classList.toggle("active", t === "lab");
+  $("funPanel").style.display = t === "fun" ? "" : "none";
+  $("labPanel").style.display = t === "lab" ? "" : "none";
+}
+function toast(msg) {
+  const t = $("toastEl");
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._timer); t._timer = setTimeout(() => (t.style.display = "none"), 3000);
+}
+function reset() {
+  $("question").value = ""; $("context").value = "";
+  $("verdict").style.display = "none"; $("loading").style.display = "none";
+}
+function inspiration() {
+  const t = TOPICS[Math.floor(Math.random() * TOPICS.length)];
+  $("question").value = t.q; setMode(t.m); $("context").value = "";
+  switchTab("fun");
+  toast("已抽取纠结场景");
+}
+
+function bars(probabilities, winnerLabel) {
+  const entries = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+  return `<div class="bars">` + entries.map(([k, v]) => {
+    const pct = (v * 100).toFixed(1);
+    const win = winnerLabel !== undefined && k === winnerLabel;
+    return `<div class="bar-row${win ? " winner" : ""}">
+      <span class="bar-label">${escapeHtml(k)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <span class="bar-pct">${pct}%</span></div>`;
+  }).join("") + `</div>`;
+}
+function escapeHtml(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
+
+async function ask(reroll) {
+  const q = $("question").value.trim();
+  if (!q) { toast("先输入你想让 Laya 裁决的纠结问题！"); return; }
+  if (reroll && q === lastQuestion) toast("再问一次，概率会轻微抖动，但答案通常很坚定");
+
+  $("verdict").style.display = "none";
+  $("loading").style.display = "block";
+  lastQuestion = q;
+  $("askBtn").disabled = true;
+  try {
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q, mode, context: $("context").value.trim() }),
+    });
+    const json = await res.json();
+    if (json.code !== 0) { toast(json.message || "服务异常"); return; }
+    render(json.data);
+  } catch (e) {
+    toast("请求失败：" + e.message);
+  } finally {
+    $("loading").style.display = "none";
+    $("askBtn").disabled = false;
+    $("verdict").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function render(d) {
+  $("vSign").textContent = `Laya 裁决书 · 签号 No.${d.signId} · 「${MODELS[d.mode]}」`;
+  const badge = $("vBadge");
+  badge.textContent = d.tag;
+  badge.className = "badge " + d.badge;
+  $("vMain").textContent = d.verdict;
+  $("vTag").textContent = d.tag;
+  $("vReason").textContent = d.reasoning;
+
+  let winner = null, probs = d.probabilities;
+  if (d.mode === "choice" || d.mode === "yes_no") winner = Object.entries(probs).sort((a, b) => b[1] - a[1])[0][0];
+  $("vBars").innerHTML = bars(probs, winner);
+
+  $("vMeta").textContent = `裁决耗时 ${d.latencyMs} ms · ${d.model} · 输出 0 token` + (d.autoMode ? " · 检测到 A or B 句式，自动切到「选哪个」" : "");
+  $("verdict").style.display = "block";
+}
+
+/* ============ 场景实验室 ============ */
+async function loadScenarios() {
+  const r = await fetch("/api/scenarios");
+  scenarios = (await r.json()).data;
+  scenarios.push({
+    id: "custom", name: "自定义", icon: "🛠️",
+    desc: "自己定义问题 schema（是非 / 评分 / 选择任意组合）——答案空间在运行时定义、无需任何训练，这正是 laya 的核心能力。定义好后对任意 state 让 Laya 裁决。",
+    state_hint: "任意文本或 JSON",
+    examples: [],
+  });
+  renderScenChips();
+  pickScenario(scenarios[0].id);
+}
+function renderScenChips() {
+  $("scenChips").innerHTML = "";
+  scenarios.forEach((s) => {
+    const b = document.createElement("button");
+    b.className = "mode" + (curScen && curScen.id === s.id ? " active" : "");
+    b.textContent = `${s.icon} ${s.name}`;
+    b.onclick = () => pickScenario(s.id);
+    $("scenChips").appendChild(b);
+  });
+}
+function pickScenario(id) {
+  curScen = scenarios.find((s) => s.id === id);
+  renderScenChips();
+  $("scenDesc").textContent = curScen.desc;
+  $("scenHint").textContent = "state 输入：" + curScen.state_hint;
+  $("stateBox").value = "";
+  $("labResult").style.display = "none";
+  $("customBuilder").style.display = curScen.id === "custom" ? "" : "none";
+  $("exChips").innerHTML = "";
+  if (curScen.id === "custom") {
+    renderSampleChips();
+    loadSampleSchema(0);
+  } else {
+    curScen.examples.forEach((ex) => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = "例：" + (ex.length > 38 ? ex.slice(0, 38) + "…" : ex);
+      b.onclick = () => { $("stateBox").value = ex; };
+      $("exChips").appendChild(b);
+    });
+  }
+}
+
+/* ---- 自定义 schema 编辑器 ---- */
+const SAMPLE_SCHEMAS = [
+  { label: "中文客服工单", rows: [
+    { qid: "sentiment", name: "情感倾向", type: "score", instructions: "判断这条内容的情感倾向（负面→正面）", options: ["负面", "中性", "正面"] },
+    { qid: "complaint", name: "是否投诉", type: "noul", instructions: "这是不是一条正式投诉？" },
+    { qid: "topic", name: "主要话题", type: "choice", instructions: "这条内容主要关于什么？", options: ["物流", "质量", "服务", "价格"] },
+  ]},
+  { label: "Support ticket (EN)", rows: [
+    { qid: "priority", name: "Priority", type: "score", instructions: "How urgently does this ticket need a response?", options: ["low", "medium", "high", "critical"] },
+    { qid: "churn_risk", name: "Churn risk", type: "noul", instructions: "Does the customer threaten to leave for a competitor or cancel?" },
+    { qid: "category", name: "Category", type: "choice", instructions: "What is this ticket about?", options: ["refund", "bug", "how_to", "billing", "other"] },
+  ]},
+  { label: "中文内容安全", rows: [
+    { qid: "toxicity", name: "毒性程度", type: "score", instructions: "这条内容的毒性有多强？", options: ["无害", "轻度冒犯", "明显攻击", "严重辱骂"] },
+    { qid: "is_ad", name: "是否广告", type: "noul", instructions: "这是不是广告或引流内容？" },
+    { qid: "action", name: "处置建议", type: "choice", instructions: "建议采取什么处置？", options: ["放行", "限流", "删除", "封号"] },
+  ]},
+  { label: "Content safety (EN)", rows: [
+    { qid: "toxic", name: "Toxic", type: "noul", instructions: "Is this post toxic: rude, disrespectful or likely to drive people away?" },
+    { qid: "severity", name: "Severity", type: "score", instructions: "How severe is the rule-breaking in this post?", options: ["none", "mild", "clear violation", "severe"] },
+    { qid: "threat", name: "Threat", type: "noul", instructions: "Does this post threaten violence or intimidation?" },
+  ]},
+  { label: "中文邮件分诊", rows: [
+    { qid: "category", name: "邮件分类", type: "choice", instructions: "这封邮件应该交给哪个团队？", options: ["商务", "技术", "售后", "人事", "其他"] },
+    { qid: "urgency", name: "紧急程度", type: "score", instructions: "这封邮件有多紧急？", options: ["不急", "尽快", "急"] },
+    { qid: "needs_reply", name: "需要回复", type: "noul", instructions: "发件人是否期待回复？" },
+  ]},
+  { label: "Email triage (EN)", rows: [
+    { qid: "category", name: "Category", type: "choice", instructions: "Which team should handle this email?", options: ["billing", "technical", "sales", "security", "other"] },
+    { qid: "is_phishing", name: "Phishing", type: "noul", instructions: "Is this email a phishing or scam attempt?" },
+    { qid: "urgency", name: "Urgency", type: "score", instructions: "How urgent is this email?", options: ["no pressure", "soon", "blocking"] },
+  ]},
+  { label: "Product review (EN)", rows: [
+    { qid: "rating", name: "Rating", type: "score", instructions: "Rate this product review from negative to positive.", options: ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"] },
+    { qid: "would_recommend", name: "Recommend", type: "noul", instructions: "Does the reviewer recommend this product to others?" },
+    { qid: "aspect", name: "Aspect", type: "choice", instructions: "Which product aspect is the review mainly about?", options: ["battery", "sound", "comfort", "app", "design"] },
+  ]},
+];
+function renderSampleChips() {
+  $("sampleChips").innerHTML = "";
+  SAMPLE_SCHEMAS.forEach((s, i) => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = s.label;
+    b.onclick = () => loadSampleSchema(i);
+    $("sampleChips").appendChild(b);
+  });
+}
+function loadSampleSchema(i) {
+  const rows = SAMPLE_SCHEMAS[i].rows;
+  $("qRows").innerHTML = "";
+  rows.forEach((q) => addQRow(q));
+  toast(`已载入示例：${SAMPLE_SCHEMAS[i].label}`);
+}
+function addQRow(data) {
+  const t = data?.type || "noul";
+  const div = document.createElement("div");
+  div.className = "qrow";
+  div.innerHTML = `
+    <select class="q-type" onchange="this.closest('.qrow').querySelector('.q-opts').style.display = this.value === 'noul' ? 'none' : ''">
+      <option value="noul">是非</option><option value="score">评分</option><option value="choice">选择</option>
+    </select>
+    <input class="q-id" placeholder="问题名" maxlength="20">
+    <input class="q-ins" placeholder="指令：让 Laya 判断什么？">
+    <input class="q-opts" placeholder="选项/等级，用逗号分隔">
+    <button class="q-del" onclick="this.closest('.qrow').remove()" title="删除">✕</button>`;
+  div.querySelector(".q-type").value = t;
+  div.querySelector(".q-id").value = data?.name || data?.qid || "";
+  div.querySelector(".q-ins").value = data?.instructions || "";
+  div.querySelector(".q-opts").value = (data?.options || []).join(", ");
+  div.querySelector(".q-opts").style.display = t === "noul" ? "none" : "";
+  $("qRows").appendChild(div);
+}
+function collectSchema() {
+  const rows = [...document.querySelectorAll("#qRows .qrow")];
+  const questions = [];
+  for (const r of rows) {
+    const q = {
+      qid: r.querySelector(".q-id").value.trim(),
+      name: r.querySelector(".q-id").value.trim(),
+      type: r.querySelector(".q-type").value,
+      instructions: r.querySelector(".q-ins").value.trim(),
+      options: r.querySelector(".q-opts").value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
+    };
+    if (!q.qid) { toast("有问题缺「问题名」，补一下"); return null; }
+    if (!q.instructions) { toast(`「${q.qid}」缺指令`); return null; }
+    if (q.type !== "noul" && q.options.length < 2) { toast(`「${q.qid}」至少要 2 个选项/等级`); return null; }
+    questions.push(q);
+  }
+  if (!questions.length) { toast("至少添加一个问题，或点「载入示例 schema」"); return null; }
+  return questions;
+}
+async function runLab() {
+  const state = $("stateBox").value.trim();
+  if (!state) { toast("先把 state 内容填上！"); return; }
+  const body = { scenario: curScen.id, state };
+  if (curScen.id === "custom") {
+    const questions = collectSchema();
+    if (!questions) return;
+    body.questions = questions;
+  }
+  $("labResult").style.display = "none";
+  $("labLoading").style.display = "block";
+  $("labBtn").disabled = true;
+  try {
+    const res = await fetch("/api/playground", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (json.code !== 0) { toast(json.message || "服务异常"); return; }
+    renderLab(json.data);
+  } catch (e) {
+    toast("请求失败：" + e.message);
+  } finally {
+    $("labLoading").style.display = "none";
+    $("labBtn").disabled = false;
+    $("labResult").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+function fmtAnswer(a) {
+  if (a.type === "choice") return escapeHtml(a.answer);
+  if (a.type === "score") return `${Number(a.answer).toFixed(2)} <small>/ ${a.maxLevel} 级</small>`;
+  // 是非题：主判定跟随概率大的一侧展示
+  const pT = a.answer;
+  const isYes = pT >= 0.5;
+  const pct = ((isYes ? pT : 1 - pT) * 100).toFixed(1);
+  const cls = isYes ? "winner" : "";
+  return `<span class="${cls}">${isYes ? "是" : "否"} (${pct}%)</span>`;
+}
+function resetLab() {
+  $("stateBox").value = "";
+  $("labResult").style.display = "none";
+  $("labLoading").style.display = "none";
+}
+function renderLab(d) {
+  $("labSign").textContent = `Laya 场景实验 · 「${d.scenarioName}」 · ${d.answers.length} 个问题`;
+  $("labMeta").textContent = `裁决耗时 ${d.latencyMs} ms`;
+  $("qaGrid").innerHTML = d.answers.map((a) => {
+    let probs = a.probabilities;
+    if (a.type === "score") probs = Object.fromEntries(Object.entries(probs).map(([k, v]) => [`${k} 级`, v]));
+    if (a.type === "noul") probs = { "是": a.probabilities.true ?? a.answer, "否": a.probabilities.false ?? 1 - a.answer };
+    const winner = Object.entries(probs).sort((x, y) => y[1] - x[1])[0][0];
+    const gate = a.actProbability != null ? ` · 直答门控 ${a.actProbability}` : "";
+    return `<div class="qa">
+      <div class="qa-top"><span class="qa-name">${escapeHtml(a.qname)}</span>
+      <span class="qa-type ${a.type}">${TYPE_ZH[a.type] || a.type}</span></div>
+      <div class="qa-ans">${fmtAnswer(a)}</div>
+      ${bars(probs, winner)}
+      <div class="qa-meta">置信度 ${((a.confidence || 0) * 100).toFixed(1)}%${gate}</div>
+    </div>`;
+  }).join("");
+  $("labResult").style.display = "block";
+}
+
+// init
+setMode("yes_no");
+LIFE_SCENARIOS.forEach((t) => {
+  const b = document.createElement("button");
+  b.className = "chip";
+  b.textContent = `${t.icon} ${t.label}`;
+  b.onclick = () => {
+    switchTab("fun");
+    setMode("yes_no");
+    $("question").value = t.q;
+    $("context").value = "";
+    $("question").focus();
+  };
+  $("lifeChips").appendChild(b);
+});
+TOPICS.forEach((t) => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = t.q;
+  b.onclick = () => { $("question").value = t.q; setMode(t.m); switchTab("fun"); ask(false); };
+  $("chips").appendChild(b);
+});
+loadScenarios();
+fetch("/api/about").then((r) => r.json()).then((d) => {
+  $("modelInfo").textContent = `${d.model} · ${d.encoder} · ${d.params} · ${d.note.split("；")[0]}`;
+}).catch(() => { $("modelInfo").textContent = "model not loaded"; });
+$("question").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask(false); });
+</script>
+</body>
+</html>

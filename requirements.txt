@@ -1,0 +1,12 @@
+# 核心 SDK（0.3.7 起带 Jev 兼容 laya.serve）
+laya>=0.3.5
+# 模型与推理
+torch>=2.3
+transformers>=4.48
+safetensors>=0.4
+# Web 应用
+fastapi
+uvicorn
+# 工具
+pillow
+numpy

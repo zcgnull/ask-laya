@@ -1,0 +1,78 @@
+{
+  "tag": "en-base-on-cn",
+  "model": "convaiinnovations/laya",
+  "subfolder": null,
+  "device": "mps",
+  "template": {
+    "choice": {
+      "n": 260,
+      "accuracy": 0.5038,
+      "ece": 0.3679,
+      "mean_confidence": 0.136,
+      "brier": 0.5477,
+      "top2_accuracy": 0.7654
+    },
+    "score": {
+      "n": 260,
+      "accuracy": 0.4538,
+      "ece": 0.3015,
+      "mean_confidence": 0.1523,
+      "brier": 0.6156,
+      "mae": 0.5771
+    },
+    "noul": {
+      "n": 260,
+      "accuracy": 0.5192,
+      "ece": 0.2624,
+      "mean_confidence": 0.7417,
+      "brier": 0.3025
+    },
+    "overall": {
+      "n_decisions": 780,
+      "accuracy": 0.4923,
+      "ece": 0.2999
+    },
+    "latency": {
+      "total_s": 59.23,
+      "ms_per_case": 227.8,
+      "ms_per_decision": 75.9,
+      "input_tokens_per_case": 490.1
+    }
+  },
+  "hard": {
+    "choice": {
+      "n": 80,
+      "accuracy": 0.4,
+      "ece": 0.3097,
+      "mean_confidence": 0.1008,
+      "brier": 0.6776,
+      "top2_accuracy": 0.6
+    },
+    "score": {
+      "n": 80,
+      "accuracy": 0.275,
+      "ece": 0.1584,
+      "mean_confidence": 0.1492,
+      "brier": 0.7565,
+      "mae": 0.9394
+    },
+    "noul": {
+      "n": 80,
+      "accuracy": 0.4625,
+      "ece": 0.2801,
+      "mean_confidence": 0.7194,
+      "brier": 0.303
+    },
+    "overall": {
+      "n_decisions": 240,
+      "accuracy": 0.3792,
+      "ece": 0.2433
+    },
+    "latency": {
+      "total_s": 19.31,
+      "ms_per_case": 241.3,
+      "ms_per_decision": 80.4,
+      "input_tokens_per_case": 520.2
+    }
+  }
+}

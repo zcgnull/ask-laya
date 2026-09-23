@@ -1,0 +1,78 @@
+{
+  "tag": "zh-finetuned",
+  "model": "models/laya-zh",
+  "subfolder": null,
+  "device": "mps",
+  "template": {
+    "choice": {
+      "n": 260,
+      "accuracy": 1.0,
+      "ece": 0.1085,
+      "mean_confidence": 0.8915,
+      "brier": 0.0,
+      "top2_accuracy": 1.0
+    },
+    "score": {
+      "n": 260,
+      "accuracy": 0.7462,
+      "ece": 0.1404,
+      "mean_confidence": 0.6135,
+      "brier": 0.2884,
+      "mae": 0.2967
+    },
+    "noul": {
+      "n": 260,
+      "accuracy": 0.9692,
+      "ece": 0.0679,
+      "mean_confidence": 0.9421,
+      "brier": 0.0266
+    },
+    "overall": {
+      "n_decisions": 780,
+      "accuracy": 0.9051,
+      "ece": 0.0894
+    },
+    "latency": {
+      "total_s": 12.89,
+      "ms_per_case": 49.6,
+      "ms_per_decision": 16.5,
+      "input_tokens_per_case": 273.7
+    }
+  },
+  "hard": {
+    "choice": {
+      "n": 80,
+      "accuracy": 0.6625,
+      "ece": 0.2809,
+      "mean_confidence": 0.5232,
+      "brier": 0.5449,
+      "top2_accuracy": 0.8875
+    },
+    "score": {
+      "n": 80,
+      "accuracy": 0.225,
+      "ece": 0.2324,
+      "mean_confidence": 0.4574,
+      "brier": 0.9568,
+      "mae": 0.9438
+    },
+    "noul": {
+      "n": 80,
+      "accuracy": 0.775,
+      "ece": 0.1767,
+      "mean_confidence": 0.8988,
+      "brier": 0.1638
+    },
+    "overall": {
+      "n_decisions": 240,
+      "accuracy": 0.5542,
+      "ece": 0.2032
+    },
+    "latency": {
+      "total_s": 4.0,
+      "ms_per_case": 50.0,
+      "ms_per_decision": 16.7,
+      "input_tokens_per_case": 284.1
+    }
+  }
+}

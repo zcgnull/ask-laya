@@ -1,0 +1,78 @@
+{
+  "tag": "ml-base",
+  "model": "convaiinnovations/laya",
+  "subfolder": "multilingual",
+  "device": "mps",
+  "template": {
+    "choice": {
+      "n": 260,
+      "accuracy": 0.7115,
+      "ece": 0.2562,
+      "mean_confidence": 0.7938,
+      "brier": 0.471,
+      "top2_accuracy": 0.9154
+    },
+    "score": {
+      "n": 260,
+      "accuracy": 0.2385,
+      "ece": 0.2237,
+      "mean_confidence": 0.3501,
+      "brier": 0.9543,
+      "mae": 0.9483
+    },
+    "noul": {
+      "n": 260,
+      "accuracy": 0.3346,
+      "ece": 0.5087,
+      "mean_confidence": 0.8433,
+      "brier": 0.4468
+    },
+    "overall": {
+      "n_decisions": 780,
+      "accuracy": 0.4282,
+      "ece": 0.2798
+    },
+    "latency": {
+      "total_s": 13.05,
+      "ms_per_case": 50.2,
+      "ms_per_decision": 16.7,
+      "input_tokens_per_case": 273.7
+    }
+  },
+  "hard": {
+    "choice": {
+      "n": 80,
+      "accuracy": 0.5625,
+      "ece": 0.2138,
+      "mean_confidence": 0.6389,
+      "brier": 0.648,
+      "top2_accuracy": 0.7375
+    },
+    "score": {
+      "n": 80,
+      "accuracy": 0.2625,
+      "ece": 0.1514,
+      "mean_confidence": 0.2921,
+      "brier": 0.9033,
+      "mae": 1.1274
+    },
+    "noul": {
+      "n": 80,
+      "accuracy": 0.425,
+      "ece": 0.3571,
+      "mean_confidence": 0.7821,
+      "brier": 0.345
+    },
+    "overall": {
+      "n_decisions": 240,
+      "accuracy": 0.4167,
+      "ece": 0.2089
+    },
+    "latency": {
+      "total_s": 4.01,
+      "ms_per_case": 50.1,
+      "ms_per_decision": 16.7,
+      "input_tokens_per_case": 284.1
+    }
+  }
+}

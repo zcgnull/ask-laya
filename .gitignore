@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+models/
+webapp/server.log
+webapp/studio/server.py
+webapp/studio/static/
+models/download.log
