@@ -345,6 +345,39 @@ def parse_result(res: dict, question: str, mode: str, latency_ms: float,
 
 
 # ---------- 场景实验室（对齐官方 laya-demo 的六个工作流，schema 来自 laya.presets） ----------
+KG_RELATIONS = {
+    "位于": "实体所在的地理位置或场所",
+    "总部位于": "组织的总部所在地",
+    "创立于": "组织或品牌创建的时间或地点",
+    "毕业于": "人物毕业的院校",
+    "任职于": "人物就职或担任职务的机构",
+    "创作者": "作品或成果的创作者",
+    "无明确关系": "句子未表达上述任何关系",
+}
+KG_ENTITY_TYPES = {
+    "人物": "真实或虚构的人物",
+    "组织": "公司、机构、政府、学校等组织",
+    "地点": "国家、城市、区县、场所等地理实体",
+    "作品": "书籍、影视、软件、艺术作品等",
+    "产品": "商品或工业产品",
+    "其他": "不属于以上类型的实体",
+}
+
+
+def kg_questions():
+    """KG 流水线中 laya 能胜任的判断环节：三元组支持性 / 关系分类 / 头实体类型。"""
+    return {
+        "supported": {"type": "noul",
+                      "instructions": "判断句子能否推断出该三元组（头实体-关系-尾实体）成立。关系必须精确匹配，类型不符（如对人物使用“总部位于”）视为不成立。"},
+        "relation_class": {"type": "choice",
+                           "instructions": "句子实际表达的关系是哪一类？若无明确关系选“无明确关系”。",
+                           "criteria": KG_RELATIONS},
+        "head_type": {"type": "choice",
+                      "instructions": "句中头实体（三元组的 head）的实体类型是哪一类？",
+                      "criteria": KG_ENTITY_TYPES},
+    }
+
+
 def rag_questions():
     """RAG 段落过滤（官方 demo 同款工作流；presets 未内置，自行定义）。"""
     return {
@@ -380,6 +413,7 @@ QNAMES = {
                    "spam": "广告刷屏", "severity": "违规严重度"},
     "routing": {"difficulty": "任务难度", "domain": "任务领域", "needs_tools": "需要外部工具",
                 "is_sensitive": "敏感后果"},
+    "kg": {"supported": "三元组成立", "relation_class": "关系分类", "head_type": "头实体类型"},
     "rag": {"relevant": "内容相关", "on_topic": "主题一致", "usefulness": "信息价值"},
 }
 
@@ -419,6 +453,15 @@ SCENARIOS = [
          "Write a recursive SQL query to detect cycles in an org-chart adjacency table, and explain how to avoid infinite loops.",
          "hey what's up",
      ]},
+    {"id": "kg", "name": "知识图谱校验", "icon": "🔗",
+     "desc": "KG 流水线中 laya 能做的判断环节：给定句子与候选三元组（头-关系-尾），一次前向判定三元组是否被支持、句子实际表达的关系类别与头实体类型——抽取交给 LLM，此处负责质量门控。",
+     "state_hint": 'JSON：{"sentence": "…", "triple": {"head": "…", "relation": "…", "tail": "…"}}',
+     "examples": [
+         '{"sentence": "华为的总部位于深圳。", "triple": {"head": "华为", "relation": "总部位于", "tail": "深圳"}}',
+         '{"sentence": "乔布斯于1997年重新执掌苹果公司。", "triple": {"head": "乔布斯", "relation": "任职于", "tail": "苹果公司"}}',
+         '{"sentence": "《三体》是刘慈欣创作的长篇科幻小说。", "triple": {"head": "三体", "relation": "创作者", "tail": "刘慈欣"}}',
+         '{"sentence": "鲁迅的故乡是绍兴。", "triple": {"head": "鲁迅", "relation": "总部位于", "tail": "绍兴"}}',
+     ]},
     {"id": "rag", "name": "RAG 段落过滤", "icon": "📄",
      "desc": "检索重排的廉价预过滤器：让 Laya 裁决一次，判定段落与 query 的相关性、主题一致性与信息价值。",
      "state_hint": "JSON 格式：{\"query\": \"…\", \"passage\": \"…\"}",
@@ -434,6 +477,7 @@ def build_scenario_questions(scenario_id: str):
     builders = {
         "triage": triage_questions, "email": email_questions, "guard": guard_questions,
         "moderation": moderation_questions, "routing": router_questions, "rag": rag_questions,
+        "kg": kg_questions,
     }
     return builders[scenario_id]()
 
