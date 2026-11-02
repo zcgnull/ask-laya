@@ -7,6 +7,7 @@ v2：中英双语适配——语言检测（laya.lang.is_english）决定 prompt
 启动：python webapp/server.py [--model convaiinnovations/laya --subfolder multilingual] [--port 8123]
 """
 import argparse
+import json
 import os
 import random
 import re
@@ -16,6 +17,30 @@ import time
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+# ---- laya 0.4.x 新能力（旧版本自动降级）----
+try:  # Jev 口径置信度（#302）：choice/score 的 max(p)
+    from laya.confidence import jev_confidence as _jev_confidence
+except ImportError:
+    _jev_confidence = None
+try:  # 选项稳定性校验（#635）：选项重排/改名一致性
+    from laya.hooks import OptionStabilityHook
+except ImportError:
+    OptionStabilityHook = None
+
+
+def _jev_conf(answer: dict):
+    """Jev 口径置信度（max(p)）；旧版 laya 无该函数时内联等价实现。"""
+    if _jev_confidence is not None:
+        return _jev_confidence(answer)
+    probs = answer.get("probabilities")
+    if not isinstance(probs, dict) or not probs:
+        return None
+    try:
+        vals = [float(v) for v in probs.values()]
+    except (TypeError, ValueError):
+        return None
+    return round(max(vals), 4) if vals else None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..")
@@ -591,10 +616,24 @@ def playground(body: dict):
         return {"code": 400, "message": "未知场景"}
     else:
         questions = build_scenario_questions(scenario_id)
+
+    # laya 0.4.x：弃答门控（min_confidence，answer 上标记 low_confidence）
+    # 与选项稳定性校验（OptionStabilityHook，choice 答案附 reliability）
+    predict_kwargs = {}
+    min_conf = body.get("min_confidence")
+    if isinstance(min_conf, (int, float)) and 0 < min_conf < 1:
+        predict_kwargs["min_confidence"] = float(min_conf)
+    stability = bool(body.get("stability"))
+    hooks = []
+    if stability and OptionStabilityHook is not None and any(q["type"] == "choice" for q in questions.values()):
+        hooks.append(OptionStabilityHook(accept=None, escalate=None, n_shuffles=2))
+    if hooks:
+        predict_kwargs["hooks"] = hooks
+
     agent = _state["agent"]
     with _state["lock"]:
         t0 = time.perf_counter()
-        res = agent.predict(state, questions)
+        res = agent.predict(state, questions, **predict_kwargs)
         latency_ms = round((time.perf_counter() - t0) * 1000, 1)
 
     answers = []
@@ -602,6 +641,16 @@ def playground(body: dict):
         entry = {"qid": qid, "qname": qnames.get(qid, qid),
                  "type": ans["type"], "confidence": ans["confidence"],
                  "actProbability": ans.get("action", {}).get("act_probability")}
+        if ans.get("low_confidence") is not None:
+            entry["lowConfidence"] = bool(ans["low_confidence"])
+        if isinstance(ans.get("answer_confidence"), (int, float)):
+            entry["answerConfidence"] = round(float(ans["answer_confidence"]), 4)
+        rel = ans.get("reliability")
+        if isinstance(rel, dict):
+            entry["reliability"] = {"stability": rel.get("stability"),
+                                    "renameStability": rel.get("rename_stability"),
+                                    "softStability": rel.get("soft_stability"),
+                                    "decision": rel.get("decision")}
         if ans["type"] == "choice":
             entry["answer"], entry["probabilities"] = ans["choice"], ans["probabilities"]
         elif ans["type"] == "score":
@@ -635,11 +684,46 @@ def jev_health():
             "device": str(agent.device) if agent else "auto"}
 
 
+def _project_jev_strict(result: dict) -> dict:
+    """投影到严格 Jev 线协议（LAYA_JEV_STRICT=1 时启用，与上游 serve 同语义）。"""
+    answers = {}
+    for qid, a in (result.get("answers") or {}).items():
+        kind = a.get("type") if isinstance(a, dict) else None
+        if kind == "choice":
+            answers[qid] = {"type": "choice", "choice": a["choice"],
+                            "confidence": a["confidence"], "probabilities": a["probabilities"]}
+        elif kind == "score":
+            answers[qid] = {"type": "score", "score": a["score"], "confidence": a["confidence"],
+                            "probabilities": a["probabilities"], "legend": a.get("legend")}
+        elif kind == "noul":
+            answers[qid] = {"type": "noul", "noul": a["noul"]}
+        else:
+            answers[qid] = a
+    usage = result.get("usage") or {}
+    return {"model": result["model"], "answers": answers,
+            "usage": {"input_tokens": usage.get("input_tokens", 0),
+                      "output_tokens": usage.get("output_tokens", 0)}}
+
+
+def _with_jev_confidence(result: dict) -> dict:
+    """choice/score 答案附 x_jev_confidence（Jev 口径置信度，#302；x_ 前缀防碰撞）。"""
+    answers = {}
+    for qid, a in (result.get("answers") or {}).items():
+        if isinstance(a, dict) and a.get("type") in ("choice", "score"):
+            conf = _jev_conf(a)
+            answers[qid] = a if conf is None else {**a, "x_jev_confidence": conf}
+        else:
+            answers[qid] = a
+    return {**result, "answers": answers}
+
+
 @app.post("/v1/systemone")
 def systemone(body: dict):
     """TypeSafe Jev 线协议：{state, questions, model?} → {model, answers, usage}。
 
     本进程仅运行 multilingual 检查点，客户端的 model 字段（如 jev-1）被忽略。
+    0.4.x 对齐：choice/score 附 x_jev_confidence；LAYA_JEV_STRICT=1 时投影到
+    严格 Jev 契约；state 截断时记日志告警。
     """
     agent = _state.get("agent")
     if agent is None:
@@ -648,10 +732,81 @@ def systemone(body: dict):
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="request body must be an object with a 'questions' field")
     try:
-        return agent.predict(body.get("state"), body["questions"])
+        result = agent.predict(body.get("state"), body["questions"])
     except Exception as e:  # noqa: BLE001
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail=str(e))
+
+    usage = result.get("usage") or {}
+    truncated = usage.get("state_truncated") or usage.get("truncated")
+    if truncated:
+        print(f"[ask-laya][warn] Jev 请求 state 被截断（max_len={agent.cfg.get('max_len')}），"
+              f"决策只见部分上下文", flush=True)
+    result = _with_jev_confidence(result)
+    if os.environ.get("LAYA_JEV_STRICT", "").strip().lower() in ("1", "true", "yes", "on"):
+        return _project_jev_strict(result)
+    return result
+
+
+@app.post("/v1/systemone/batch")
+def systemone_batch(body: dict):
+    """批量 Jev 请求（0.4.x 对齐）：{states, questions} 或 {items: [{state, questions}]}。
+
+    返回 {results: [...]}，顺序与输入一致；单条失败该位置为 {"error": "..."}。
+    """
+    agent = _state.get("agent")
+    if agent is None:
+        return {"detail": "model not loaded"}
+    items = body.get("items")
+    if items is None and isinstance(body.get("states"), list):
+        items = [{"state": st, "questions": body["questions"]} for st in body["states"]]
+    if not isinstance(items, list) or not items:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400,
+                            detail="body must contain 'items: [{state, questions}]' or 'states' + 'questions'")
+    if len(items) > 32:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="batch limited to 32 items")
+
+    results = []
+    use_batch = hasattr(agent, "predict_batch") and all(
+        isinstance(it, dict) and it.get("questions") == items[0].get("questions") for it in items)
+    with _state["lock"]:
+        if use_batch:
+            try:
+                preds = agent.predict_batch([it["state"] for it in items],
+                                            items[0]["questions"], batch_size=4)
+                results = [_with_jev_confidence(r) for r in preds]
+            except Exception as e:  # noqa: BLE001
+                results = [{"error": str(e)}] * len(items)
+        else:
+            for it in items:
+                try:
+                    results.append(_with_jev_confidence(agent.predict(it["state"], it["questions"])))
+                except Exception as e:  # noqa: BLE001
+                    results.append({"error": str(e)})
+    return {"model": "laya-rl-agent", "results": results}
+
+
+@app.post("/v1/route")
+def route_only(body: dict):
+    """仅路由诊断，不做前向（0.4.x 对齐 /v1/route）：返回语种检测与检查点选择。"""
+    from laya import detect_language
+    state = body.get("state") if isinstance(body, dict) else None
+    text = json.dumps(state, ensure_ascii=False) if not isinstance(state, str) else state
+    if not text:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="body must contain 'state'")
+    try:
+        lang = detect_language(text)
+    except Exception:  # noqa: BLE001
+        lang = None
+    is_en = question_is_english(text)
+    return {"model": _state.get("label") or "laya-zh-v2",
+            "routing": {"reason": "English Latin text" if is_en else
+                        "non-Latin or mixed script; single-checkpoint deployment serves it anyway",
+                        "is_english": is_en, "detected": str(lang)},
+            "note": "single-checkpoint deployment: routing is advisory only"}
 
 
 def main():

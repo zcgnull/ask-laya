@@ -1,5 +1,5 @@
 # 核心 SDK（0.3.7 起带 Jev 兼容 laya.serve）
-laya>=0.3.5
+laya>=0.4.21
 # 模型与推理
 torch>=2.3
 transformers>=4.48

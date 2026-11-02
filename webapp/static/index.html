@@ -136,6 +136,9 @@
   .qa .bar-track { height: 13px; border-width: 2px; }
   .qa-meta { margin-top: 9px; font-size: 10px; color: #6b6255; font-family: ui-monospace, monospace; border-top: 1px dashed rgba(0,0,0,.2); padding-top: 6px; }
 
+  .lowconf { font-size: 10px; font-weight: 900; color: var(--red); border: 2px solid var(--red);
+    border-radius: 5px; padding: 1px 5px; margin-left: 6px; background: #fff5f3; }
+
   /* 自定义 schema 编辑器 */
   .qrow { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; align-items: center; }
   .qrow input, .qrow select {
@@ -263,6 +266,19 @@
       </div>
       <textarea id="stateBox" spellcheck="false" placeholder=""></textarea>
       <div class="exchips" id="exChips"></div>
+      <div class="modes" style="margin-bottom:8px">
+        <span style="font-size:12px;font-weight:800;align-self:center;color:#6b6255">可靠性（laya 0.4.x）：</span>
+        <select id="minConf" class="mode" style="cursor:pointer">
+          <option value="">弃答门控：关</option>
+          <option value="0.3">弃答阈值 0.3</option>
+          <option value="0.4">弃答阈值 0.4</option>
+          <option value="0.5">弃答阈值 0.5</option>
+          <option value="0.6">弃答阈值 0.6</option>
+          <option value="0.7">弃答阈值 0.7</option>
+        </select>
+        <label class="mode" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          <input type="checkbox" id="stabChk"> 选项稳定性校验</label>
+      </div>
       <div class="actions">
         <button class="btn btn-primary display" id="labBtn" onclick="runLab()">让 Laya 裁决</button>
         <button class="btn" onclick="resetLab()">清空</button>
@@ -552,6 +568,9 @@ async function runLab() {
   const state = $("stateBox").value.trim();
   if (!state) { toast("先把 state 内容填上！"); return; }
   const body = { scenario: curScen.id, state };
+  const mc = document.getElementById("minConf").value;
+  if (mc) body.min_confidence = parseFloat(mc);
+  if (document.getElementById("stabChk").checked) body.stability = true;
   if (curScen.id === "custom") {
     const questions = collectSchema();
     if (!questions) return;
@@ -601,12 +620,21 @@ function renderLab(d) {
     if (a.type === "noul") probs = { "是": a.probabilities.true ?? a.answer, "否": a.probabilities.false ?? 1 - a.answer };
     const winner = Object.entries(probs).sort((x, y) => y[1] - x[1])[0][0];
     const gate = a.actProbability != null ? ` · 直答门控 ${a.actProbability}` : "";
+    const low = a.lowConfidence ? '<span class="lowconf">⚠ 低置信，建议复核</span>' : "";
+    let rel = "";
+    if (a.reliability) {
+      const r = a.reliability;
+      const f = (x) => (typeof x === "number" ? (x * 100).toFixed(0) + "%" : "—");
+      rel = `<div class="qa-meta">稳定性 ${f(r.stability)} · 改名一致 ${f(r.renameStability)} · 软稳定 ${f(r.softStability)}（选项重排/改名 metamorphic 校验）</div>`;
+    }
+    const ansConf = typeof a.answerConfidence === "number" ? ` · 校准置信 ${(a.answerConfidence * 100).toFixed(1)}%` : "";
     return `<div class="qa">
-      <div class="qa-top"><span class="qa-name">${escapeHtml(a.qname)}</span>
+      <div class="qa-top"><span class="qa-name">${escapeHtml(a.qname)} ${low}</span>
       <span class="qa-type ${a.type}">${TYPE_ZH[a.type] || a.type}</span></div>
       <div class="qa-ans">${fmtAnswer(a)}</div>
       ${bars(probs, winner)}
-      <div class="qa-meta">置信度 ${((a.confidence || 0) * 100).toFixed(1)}%${gate}</div>
+      <div class="qa-meta">置信度 ${((a.confidence || 0) * 100).toFixed(1)}%${ansConf}${gate}</div>
+      ${rel}
     </div>`;
   }).join("");
   $("labResult").style.display = "block";

@@ -19,6 +19,7 @@ def _ensure_deps():
     import subprocess
     import sys
 
+    # 镜像源可能滞后：基线放宽，启动后尽力升到 0.4.x（新特性自动启用，旧版优雅降级）
     for pkg in ("fastapi", "uvicorn", "laya>=0.3.5"):
         name = pkg.split(">=")[0].split("==")[0]
         try:

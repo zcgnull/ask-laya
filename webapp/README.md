@@ -30,7 +30,14 @@ laya 0.3.7 新增 `laya-serve`（TypeSafe Jev 的 `/v1/systemone` 线协议）�
 
 **玩法**：在 ask-jev 官网的「TypeSafe 接口设置」里把 endpoint 填成 `http://39.98.88.195:18081/v1/systemone`（或局域网 `http://127.0.0.1:8123/v1/systemone`），官方站点就会用我们本地的真实 laya 模型出裁决。任何按 Jev 协议写的客户端（如 hs-jev）同样即插即用。
 
-## 依赖版本适配（laya 0.3.7）
+## laya 0.4.21 新能力集成（2026-11）
+
+- **场景实验室**：新增「弃答门控」阈值（0.3–0.7，答案带 `low_confidence` 时卡片显示"⚠ 低置信，建议复核"）与「选项稳定性校验」（上游 OptionStabilityHook：选项重排/改名 metamorphic 一致性，卡片显示 稳定性/改名一致/软稳定）；答案卡新增上游校准置信 `answer_confidence`
+- **Jev API 对齐上游 0.4.x**：`/v1/systemone` 的 choice/score 答案附 `x_jev_confidence`（Jev 口径 max(p) 置信度），`LAYA_JEV_STRICT=1` 时投影到严格 Jev 契约，state 截断记日志告警
+- **新端点**：`POST /v1/route`（仅语种路由诊断，零前向）、`POST /v1/systemone/batch`（批量 ≤32 条，优先走 Agent.predict_batch）
+- 旧版 laya 自动降级：新字段/开关缺失时不影响原有功能
+
+## 依赖版本适配（laya 0.3.7 → 0.4.21）
 
 - `load / Agent.predict / build_sequence / presets` 签名与 0.3.5 完全兼容，本仓库代码无需改动即通过回归；
 - 新增能力：`laya.serve`（Jev 协议服务器，本站已集成）、`research/benchmarks/feishu_zh`（可复现中文工作流基准）、分语言评测 harness、Docker/Compose 快速启动；
