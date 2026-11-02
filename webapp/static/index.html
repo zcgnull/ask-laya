@@ -139,6 +139,18 @@
   .lowconf { font-size: 10px; font-weight: 900; color: var(--red); border: 2px solid var(--red);
     border-radius: 5px; padding: 1px 5px; margin-left: 6px; background: #fff5f3; }
 
+  /* 实验室：示例 chips 与可靠性行 */
+  #labPanel .exchips .chip {
+    max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .relrow {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin: 12px 0 2px; padding: 8px 12px;
+    background: var(--cream); border: 2px dashed rgba(0,0,0,.25); border-radius: 8px;
+  }
+  .rel-label { font-size: 11px; font-weight: 800; color: #6b6255; }
+  .relchk input { accent-color: var(--red); margin: 0; }
+
   /* 自定义 schema 编辑器 */
   .qrow { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; align-items: center; }
   .qrow input, .qrow select {
@@ -264,11 +276,11 @@
         </div>
         <div id="qRows"></div>
       </div>
-      <textarea id="stateBox" spellcheck="false" placeholder=""></textarea>
       <div class="exchips" id="exChips"></div>
-      <div class="modes" style="margin-bottom:8px">
-        <span style="font-size:12px;font-weight:800;align-self:center;color:#6b6255">可靠性（laya 0.4.x）：</span>
-        <select id="minConf" class="mode" style="cursor:pointer">
+      <textarea id="stateBox" spellcheck="false" placeholder=""></textarea>
+      <div class="relrow">
+        <span class="rel-label">🧯 可靠性（laya 0.4.x）</span>
+        <select id="minConf" class="mode">
           <option value="">弃答门控：关</option>
           <option value="0.3">弃答阈值 0.3</option>
           <option value="0.4">弃答阈值 0.4</option>
@@ -276,8 +288,7 @@
           <option value="0.6">弃答阈值 0.6</option>
           <option value="0.7">弃答阈值 0.7</option>
         </select>
-        <label class="mode" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-          <input type="checkbox" id="stabChk"> 选项稳定性校验</label>
+        <label class="mode relchk"><input type="checkbox" id="stabChk"> 选项稳定性校验</label>
       </div>
       <div class="actions">
         <button class="btn btn-primary display" id="labBtn" onclick="runLab()">让 Laya 裁决</button>
@@ -465,7 +476,8 @@ function pickScenario(id) {
     curScen.examples.forEach((ex) => {
       const b = document.createElement("button");
       b.className = "chip";
-      b.textContent = "例：" + (ex.length > 38 ? ex.slice(0, 38) + "…" : ex);
+      b.textContent = "例：" + ex;
+      b.title = ex;
       b.onclick = () => { $("stateBox").value = ex; };
       $("exChips").appendChild(b);
     });
