@@ -1,0 +1,26 @@
+{
+ "choice": {
+  "n": 64,
+  "accuracy": 1.0,
+  "macro_f1": 1.0,
+  "false_action_count": 0,
+  "nonaction_denominator": 32,
+  "missed_action_count": 0,
+  "action_denominator": 32,
+  "urgent_recalled": 16,
+  "urgent_denominator": 16,
+  "p50_ms": 2891.1
+ },
+ "four_noul": {
+  "n": 64,
+  "accuracy": 0.953125,
+  "macro_f1": 0.9538402457757297,
+  "false_action_count": 0,
+  "nonaction_denominator": 32,
+  "missed_action_count": 2,
+  "action_denominator": 32,
+  "urgent_recalled": 16,
+  "urgent_denominator": 16,
+  "p50_ms": 18262.6
+ }
+}

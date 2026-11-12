@@ -639,7 +639,7 @@ def playground(body: dict):
     answers = []
     for qid, ans in res["answers"].items():
         entry = {"qid": qid, "qname": qnames.get(qid, qid),
-                 "type": ans["type"], "confidence": ans["confidence"],
+                 "type": ans["type"], "confidence": ans.get("confidence"),
                  "actProbability": ans.get("action", {}).get("act_probability")}
         if ans.get("low_confidence") is not None:
             entry["lowConfidence"] = bool(ans["low_confidence"])
@@ -677,6 +677,54 @@ def cover_png():
 
 
 # ---------- Jev 兼容 SystemOne API（与 laya-serve 相同的线协议，显式路由） ----------
+class RemoteJevAgent:
+    """通过 Jev /v1/systemone 协议调用远程决策后端（如 Piccolo patched llama-server）。
+
+    远端只需返回 {model, answers, usage} 形状；predict 的 min_confidence/hooks
+    等 laya 0.4.x 扩展参数在远程后端上为 no-op（相关字段缺失时 UI 自动降级）。
+    """
+
+    loaded = True
+
+    def __init__(self, base_url: str, name: str):
+        self.base_url = base_url.rstrip("/")
+        self.label = name
+        self.cfg = {}
+        self.device = "remote"
+
+    def predict(self, state, questions, **_kwargs):
+        """score 题先转成 choice 发送（与上游参考实现一致），返回时再还原为 score。"""
+        import urllib.request
+        questions = dict(questions)
+        score_map = {}
+        for qid, q in questions.items():
+            if q.get("type") == "score":
+                levels = q.get("criteria") or []
+                questions[qid] = {"type": "choice", "instructions": q.get("instructions", ""),
+                                  "criteria": {str(i): t for i, t in enumerate(levels)}}
+                score_map[qid] = levels
+        body = json.dumps({"state": state, "questions": questions}).encode()
+        req = urllib.request.Request(self.base_url + "/v1/systemone", data=body,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read())
+        for qid, levels in score_map.items():
+            ans = result.get("answers", {}).get(qid)
+            if isinstance(ans, dict) and ans.get("type") == "choice":
+                probs = ans.get("probabilities") or {}
+                best = max(probs, key=probs.get) if probs else "0"
+                conf = max(probs.values()) if probs else ans.get("confidence", 0.5)
+                result["answers"][qid] = {"type": "score", "score": float(int(best)),
+                                          "probabilities": probs,
+                                          "legend": {i: t for i, t in enumerate(levels)},
+                                          "confidence": round(float(conf), 4)}
+        for ans in result.get("answers", {}).values():
+            if isinstance(ans, dict) and ans.get("type") == "noul" and "confidence" not in ans:
+                p = ans.get("noul", 0.5)
+                ans["confidence"] = round(max(p, 1 - p), 4)
+        return result
+
+
 @app.get("/health")
 def jev_health():
     agent = _state.get("agent")
@@ -815,19 +863,27 @@ def main():
     ap.add_argument("--subfolder", default="multilingual")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8123)
+    ap.add_argument("--piccolo-url", default=os.environ.get("PICCOLO_URL"),
+                    help="远程 Piccolo/Jev 后端基址（如 http://127.0.0.1:8200），设置后作为模型后端")
     args = ap.parse_args()
 
-    import laya
-    print("[ask-laya] loading laya model ...", flush=True)
-    agent = laya.load(args.model, subfolder=args.subfolder if os.path.isdir(args.model) is False else None)
-    _state["agent"] = agent
-    _state["label"] = ("laya-multilingual" if (args.subfolder == "multilingual" and not os.path.isdir(args.model))
-                       else os.path.basename(args.model.rstrip("/")))
-    print("[ask-laya] model on %s, warming up ..." % agent.device, flush=True)
-    t0 = time.perf_counter()
-    agent.predict("【用户提问】：测试预热", build_questions("测试", "yes_no", "", False))
-    print("[ask-laya] warmup %.0f ms — ready at http://%s:%d" % (
-        (time.perf_counter() - t0) * 1000, args.host, args.port), flush=True)
+    if args.piccolo_url:
+        _state["agent"] = RemoteJevAgent(args.piccolo_url, "Piccolo-4B-Q4_K_M")
+        _state["label"] = "Piccolo-4B-Q4_K_M (远程)"
+        mount_jev = True
+        print(f"[ask-laya] remote backend: {args.piccolo_url} — ready at http://{args.host}:{args.port}", flush=True)
+    else:
+        import laya
+        print("[ask-laya] loading laya model ...", flush=True)
+        agent = laya.load(args.model, subfolder=args.subfolder if os.path.isdir(args.model) is False else None)
+        _state["agent"] = agent
+        _state["label"] = ("laya-multilingual" if (args.subfolder == "multilingual" and not os.path.isdir(args.model))
+                           else os.path.basename(args.model.rstrip("/")))
+        print("[ask-laya] model on %s, warming up ..." % agent.device, flush=True)
+        t0 = time.perf_counter()
+        agent.predict("【用户提问】：测试预热", build_questions("测试", "yes_no", "", False))
+        print("[ask-laya] warmup %.0f ms — ready at http://%s:%d" % (
+            (time.perf_counter() - t0) * 1000, args.host, args.port), flush=True)
 
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
