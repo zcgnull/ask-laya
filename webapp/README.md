@@ -30,6 +30,30 @@ laya 0.3.7 新增 `laya-serve`（TypeSafe Jev 的 `/v1/systemone` 线协议）�
 
 **玩法**：在 ask-jev 官网的「TypeSafe 接口设置」里把 endpoint 填成 `http://39.98.88.195:18081/v1/systemone`（或局域网 `http://127.0.0.1:8123/v1/systemone`），官方站点就会用我们本地的真实 laya 模型出裁决。任何按 Jev 协议写的客户端（如 hs-jev）同样即插即用。
 
+## 量化 GGUF 决策模型支持（AgentScope Piccolo 等 blink 架构）
+
+框架原生适配量化决策模型（如 `AgentScope/Piccolo-4B-Q4_K_M`）：自动下载 → 托管拉起补丁版
+llama-server（随机空闲端口、禁用前缀缓存、8192 ctx 对齐）→ 健康检查 → 进程退出自动清理。
+
+```bash
+# 一条命令：自动下载模型（若未缓存）、启动运行时、整站跑在量化后端上
+.venv/bin/python webapp/server.py --gguf AgentScope/Piccolo-4B-Q4_K_M
+# 等价环境变量：ASK_LAYA_GGUF=AgentScope/Piccolo-4B-Q4_K_M
+# 本地 GGUF 路径也行：--gguf /path/to/xxx.gguf（同目录需有 decision-inference.json）
+```
+
+- **后端优先级**：`--piccolo-url`（复用外部 Jev 服务）> `--gguf`（托管量化后端）> 默认 laya 检查点；
+- **运行时要求**：QwenPaw 补丁版 llama.cpp（双向 prompt attention + 决策端点；构建步骤见
+  `gguf_backend.py` 的报错提示，或用 `PICCOLO_LLAMA_SERVER` 指向已有二进制）；
+- **协议适配**：`RemoteJevAgent` 内做 score↔choice 双向转换（Piccolo 端点按上游参考实现只收
+  choice）、noul 置信度合成，站内全部功能（生活裁决 / 七场景实验室 / Jev API）无需改动即可使用；
+- `/health` 的 `backend` 字段标识当前后端：`local-checkpoint` / `quantized-gguf` / `remote-url`；
+- 质量 vs 延迟（官方 feishu_zh 协议实测）：Piccolo-4B-Q4 零样本 choice 100% / four_noul 95.3%，
+  但 ~0.7-3s/请求（laya 检查点 ~60ms）——按场景选择后端即可。
+
+管理器实现：[webapp/gguf_backend.py](webapp/gguf_backend.py)；基准驱动：
+`scripts/piccolo_http_feishu_eval.py`（任意 /v1/systemone 后端可测）。
+
 ## laya 0.4.21 新能力集成（2026-11）
 
 - **场景实验室**：新增「弃答门控」阈值（0.3–0.7，答案带 `low_confidence` 时卡片显示"⚠ 低置信，建议复核"）与「选项稳定性校验」（上游 OptionStabilityHook：选项重排/改名 metamorphic 一致性，卡片显示 稳定性/改名一致/软稳定）；答案卡新增上游校准置信 `answer_confidence`

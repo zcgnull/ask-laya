@@ -546,8 +546,13 @@ def ask(body: AskBody):
 
 @app.get("/api/about")
 def about():
-    cfg = _state["agent"].cfg
-    return {"model": _state["label"], "encoder": cfg.get("encoder"), "params": "322M",
+    agent = _state.get("agent")
+    cfg = getattr(agent, "cfg", {}) or {}
+    is_remote = hasattr(agent, "base_url")
+    return {"model": _state["label"],
+            "encoder": "gguf-blink (quantized)" if is_remote and hasattr(agent, "managed_server")
+            else ("remote-jev" if is_remote else cfg.get("encoder")),
+            "params": "4B (Q4_K_M)" if (is_remote and "Piccolo-4B" in _state["label"]) else "322M",
             "note": "让 Laya 裁决，输出全部决策、0 个生成 token；概率由 RLCD（严格正则评分规则）训练而来。"}
 
 
@@ -728,8 +733,12 @@ class RemoteJevAgent:
 @app.get("/health")
 def jev_health():
     agent = _state.get("agent")
+    backend = ("remote-url" if hasattr(agent, "managed_server") is None and getattr(agent, "label", "").endswith("(远程)")
+               else "quantized-gguf" if hasattr(agent, "managed_server")
+               else "local-checkpoint" if agent else "none")
     return {"status": "ok", "loaded": bool(agent),
-            "device": str(agent.device) if agent else "auto"}
+            "device": str(agent.device) if agent else "auto", "backend": backend,
+            "model": _state.get("label")}
 
 
 def _project_jev_strict(result: dict) -> dict:
@@ -865,13 +874,28 @@ def main():
     ap.add_argument("--port", type=int, default=8123)
     ap.add_argument("--piccolo-url", default=os.environ.get("PICCOLO_URL"),
                     help="远程 Piccolo/Jev 后端基址（如 http://127.0.0.1:8200），设置后作为模型后端")
+    ap.add_argument("--gguf", default=os.environ.get("ASK_LAYA_GGUF"),
+                    help="量化 GGUF 决策模型（本地 .gguf 路径/目录，或 AgentScope/Piccolo-4B-Q4_K_M "
+                         "这类仓库 ID）；框架自动下载并托管拉起补丁版 llama-server")
+    ap.add_argument("--gguf-port", type=int, default=None, help="托管 llama-server 端口（默认自动分配）")
     args = ap.parse_args()
 
+    # 后端优先级：外部 Jev 服务（--piccolo-url）> 托管量化 GGUF（--gguf）> 本地 laya 检查点
     if args.piccolo_url:
         _state["agent"] = RemoteJevAgent(args.piccolo_url, "Piccolo-4B-Q4_K_M")
         _state["label"] = "Piccolo-4B-Q4_K_M (远程)"
-        mount_jev = True
         print(f"[ask-laya] remote backend: {args.piccolo_url} — ready at http://{args.host}:{args.port}", flush=True)
+    elif args.gguf:
+        from gguf_backend import make_quantized_backend, GgufBackendError
+        try:
+            agent, base_url = make_quantized_backend(args.gguf, port=args.gguf_port)
+        except GgufBackendError as e:
+            print(f"[ask-laya] {e}", flush=True)
+            raise SystemExit(2)
+        _state["agent"] = agent
+        _state["label"] = agent.label
+        print(f"[ask-laya] quantized backend {args.gguf} at {base_url} "
+              f"— ready at http://{args.host}:{args.port}", flush=True)
     else:
         import laya
         print("[ask-laya] loading laya model ...", flush=True)
