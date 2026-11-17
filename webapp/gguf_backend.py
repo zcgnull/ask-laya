@@ -145,21 +145,37 @@ class ManagedLlamaServer:
         self.proc = None
 
 
+# 单例缓存：同一 GGUF 复用运行中的 llama-server；切换到其他 GGUF 时停旧起新
+# （2.7GB 级常驻，只保留一个，16GB 统一内存下可与 laya 检查点共存）
+_SINGLETON = {"spec": None, "agent": None, "server": None}
+
+
+def get_quantized_agent(model_spec: str, port: int | None = None):
+    """获取（或复用）量化后端 agent；spec 相同直接复用运行中的 llama-server。"""
+    if _SINGLETON["spec"] == model_spec and _SINGLETON["agent"] is not None:
+        return _SINGLETON["agent"]
+    if _SINGLETON["server"] is not None:
+        _SINGLETON["server"].stop()
+        _SINGLETON.update(spec=None, agent=None, server=None)
+    gguf, descriptor = resolve_gguf(model_spec)
+    srv = ManagedLlamaServer(gguf, port=port)
+    base_url = srv.start()
+    from server import RemoteJevAgent  # 延迟导入避免循环依赖
+    agent = RemoteJevAgent(base_url, f"{gguf.stem} (量化)")
+    agent.managed_server = srv
+    agent.cfg = {"max_len": descriptor.get("max_context_length", 65536)}
+    _SINGLETON.update(spec=model_spec, agent=agent, server=srv)
+    return agent
+
+
 def make_quantized_backend(model_spec: str, port: int | None = None,
                            external_url: str | None = None, name: str | None = None):
     """装配量化后端：external_url 直接复用外部服务；否则托管拉起 llama-server。
 
     返回 (agent, base_url)；agent 具备 RemoteJevAgent 兼容的 .predict()。
     """
-    # 延迟导入避免循环依赖；RemoteJevAgent 在 server.py 定义
-    from server import RemoteJevAgent
-
     if external_url:
+        from server import RemoteJevAgent
         return RemoteJevAgent(external_url, name or "quantized (external)"), external_url
-    gguf, descriptor = resolve_gguf(model_spec)
-    srv = ManagedLlamaServer(gguf, port=port)
-    base_url = srv.start()
-    agent = RemoteJevAgent(base_url, name or f"{gguf.stem} (quantized)")
-    agent.managed_server = srv          # 引用持有，进程随 agent 生命周期清理
-    agent.cfg = {"max_len": descriptor.get("max_context_length", 65536)}
-    return agent, base_url
+    agent = get_quantized_agent(model_spec, port=port)
+    return agent, agent.base_url

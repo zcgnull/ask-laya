@@ -51,6 +51,10 @@ llama-server（随机空闲端口、禁用前缀缓存、8192 ctx 对齐）→ �
 - 质量 vs 延迟（官方 feishu_zh 协议实测）：Piccolo-4B-Q4 零样本 choice 100% / four_noul 95.3%，
   但 ~0.7-3s/请求（laya 检查点 ~60ms）——按场景选择后端即可。
 
+**页面内切换模型**：页头下拉框可在运行时切换后端（`GET/POST /api/backends`）——Piccolo 量化与
+各 laya 检查点懒加载（laya 首次 ~8s、LLRU 缓存驻留 2 个；GGUF 单例 llama-server 复用，
+切回 0 秒），切换期间展示加载提示，失败自动保留原后端。
+
 管理器实现：[webapp/gguf_backend.py](webapp/gguf_backend.py)；基准驱动：
 `scripts/piccolo_http_feishu_eval.py`（任意 /v1/systemone 后端可测）。
 

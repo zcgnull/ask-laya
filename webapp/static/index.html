@@ -199,7 +199,11 @@
 
 <header>
   <div class="brand display"><span class="logo">L</span> 问问 Laya</div>
-  <div style="display:flex; gap:8px;">
+  <div style="display:flex; gap:8px; align-items:center;">
+    <select id="modelSel" class="btn" style="cursor:pointer;max-width:230px;font-size:12px"
+            onchange="switchModel(this.value)" title="切换模型后端">
+      <option>模型加载中…</option>
+    </select>
     <button class="btn" onclick="inspiration()">🎲 换条灵感</button>
     <a class="btn" href="https://github.com/NandhaKishorM/laya" target="_blank" rel="noreferrer">GitHub</a>
     <button class="btn" onclick="toast('Laya 是一个非自回归决策引擎：让 Laya 裁决、不生成文本、概率经 RLCD 校准。本站全部推理在你的设备上完成。')">关于</button>
@@ -677,6 +681,47 @@ loadScenarios();
 fetch("/api/about").then((r) => r.json()).then((d) => {
   $("modelInfo").textContent = `${d.model} · ${d.encoder} · ${d.params} · ${d.note.split("；")[0]}`;
 }).catch(() => { $("modelInfo").textContent = "model not loaded"; });
+
+/* 模型切换 */
+async function loadBackends() {
+  try {
+    const d = (await (await fetch("/api/backends")).json()).data;
+    const sel = $("modelSel");
+    sel.innerHTML = "";
+    d.backends.forEach((b) => {
+      const o = document.createElement("option");
+      o.value = b.id;
+      o.textContent = `⇄ ${b.label}`;
+      o.title = b.hint || "";
+      if (b.id === d.current) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch (e) { $("modelInfo").textContent = "backends 不可用"; }
+}
+async function switchModel(id) {
+  const sel = $("modelSel");
+  if (!id) return;
+  sel.disabled = true;
+  toast("⏳ 正在切换模型，首次加载可能需要几十秒…");
+  try {
+    const res = await fetch("/api/backends", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const j = await res.json();
+    if (j.code !== 0) { toast(j.message || "切换失败"); return; }
+    toast(`✅ 已切换：${j.data.label}（加载 ${j.data.loadSeconds}s）`);
+    const about = await (await fetch("/api/about")).json();
+    $("modelInfo").textContent = `${about.model} · ${about.encoder} · ${about.params}`;
+  } catch (e) {
+    toast("切换请求失败：" + e.message);
+  } finally {
+    sel.disabled = false;
+    loadBackends();
+  }
+}
+loadBackends();
 $("question").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask(false); });
 </script>
 </body>

@@ -518,6 +518,14 @@ app = FastAPI(title="Ask Laya")
 _state = {"agent": None, "label": "", "lock": threading.Lock()}
 
 
+def laya_load(*_a, **_kw):
+    """延迟导入 laya.load（gguf 后端启动时不必加载 torch 栈之外的 laya）。"""
+    global laya_load
+    import laya as _laya_mod
+    laya_load = _laya_mod.load
+    return laya_load(*_a, **_kw)
+
+
 @app.post("/api/ask")
 def ask(body: AskBody):
     q = (body.question or "").strip()
@@ -679,6 +687,76 @@ def cover_png():
     """封面图直链（创空间后端经 frp 公网抓取用）。"""
     from fastapi.responses import FileResponse as FR
     return FR(os.path.join(HERE, "studio", "cover.png"), media_type="image/png")
+
+
+# ---------- 可切换模型后端（页面下拉切换） ----------
+# laya 检查点 agent 的 LRU 缓存（fp32 约 1.3GB/个，最多驻留 2 个）
+_LAYA_CACHE: dict = {}
+
+
+def _load_laya_agent(spec: str):
+    """spec 为本地目录，或 "repo_id:subfolder"；命中缓存直接复用，超限淘汰最旧。"""
+    if spec in _LAYA_CACHE:
+        return _LAYA_CACHE[spec]
+    if ":" in spec and not os.path.exists(spec):
+        repo, sub = spec.split(":", 1)
+        agent = laya_load(repo, subfolder=sub or None)
+    else:
+        agent = laya_load(spec)
+    _LAYA_CACHE[spec] = agent
+    while len(_LAYA_CACHE) > 2:
+        _LAYA_CACHE.pop(next(iter(_LAYA_CACHE)))
+    return agent
+
+
+def discover_backends() -> list:
+    """自动发现可用后端：Piccolo 量化 GGUF + models/ 下的 laya 微调检查点 + 官方基座。"""
+    backends = [{"id": "piccolo-4b-q4", "label": "Piccolo-4B Q4 量化",
+                 "hint": "blink 决策架构 · 官方基准 choice 100% · 秒级",
+                 "kind": "gguf", "spec": "AgentScope/Piccolo-4B-Q4_K_M"}]
+    models_dir = os.path.join(ROOT, "models")
+    if os.path.isdir(models_dir):
+        for name in sorted(os.listdir(models_dir)):
+            d = os.path.join(models_dir, name)
+            if os.path.isfile(os.path.join(d, "rl_agent_config.json")):
+                backends.append({"id": name, "label": name,
+                                 "hint": "laya 检查点（本地）", "kind": "laya", "spec": d})
+    backends.append({"id": "laya-multilingual", "label": "laya-multilingual 基座",
+                     "hint": "官方 multilingual · 毫秒级", "kind": "laya",
+                     "spec": "convaiinnovations/laya:multilingual"})
+    return backends
+
+
+@app.get("/api/backends")
+def list_backends():
+    return {"code": 0, "data": {"backends": discover_backends(),
+                                "current": _state.get("backend_id")}}
+
+
+@app.post("/api/backends")
+def switch_backend(body: dict):
+    """切换模型后端（阻塞至加载完成，通常 5-60s；失败保留原后端）。"""
+    bid = (body.get("id") or "").strip()
+    backend = next((b for b in discover_backends() if b["id"] == bid), None)
+    if not backend:
+        return {"code": 400, "message": f"未知后端 {bid}"}
+    t0 = time.perf_counter()
+    try:
+        if backend["kind"] == "gguf":
+            from gguf_backend import get_quantized_agent
+            agent = get_quantized_agent(backend["spec"])
+        else:
+            agent = _load_laya_agent(backend["spec"])
+    except Exception as e:  # noqa: BLE001
+        return {"code": 500, "message": f"加载失败（保留原后端）：{e}"}
+    label = backend["label"]
+    with _state["lock"]:
+        _state["agent"] = agent
+        _state["label"] = label
+        _state["backend_id"] = bid
+    print(f"[ask-laya] backend switched -> {label} in {time.perf_counter()-t0:.0f}s", flush=True)
+    return {"code": 0, "data": {"id": bid, "label": label,
+                                "loadSeconds": round(time.perf_counter() - t0, 1)}}
 
 
 # ---------- Jev 兼容 SystemOne API（与 laya-serve 相同的线协议，显式路由） ----------
@@ -882,8 +960,9 @@ def main():
 
     # 后端优先级：外部 Jev 服务（--piccolo-url）> 托管量化 GGUF（--gguf）> 本地 laya 检查点
     if args.piccolo_url:
-        _state["agent"] = RemoteJevAgent(args.piccolo_url, "Piccolo-4B-Q4_K_M")
+        _state["agent"] = RemoteJevAgent(args.piccolo_url, "Piccolo-4B-Q4_K_M (远程)")
         _state["label"] = "Piccolo-4B-Q4_K_M (远程)"
+        _state["backend_id"] = "piccolo-4b-q4"
         print(f"[ask-laya] remote backend: {args.piccolo_url} — ready at http://{args.host}:{args.port}", flush=True)
     elif args.gguf:
         from gguf_backend import make_quantized_backend, GgufBackendError
@@ -893,16 +972,23 @@ def main():
             print(f"[ask-laya] {e}", flush=True)
             raise SystemExit(2)
         _state["agent"] = agent
-        _state["label"] = agent.label
+        _state["label"] = "Piccolo-4B Q4 量化"
+        _state["backend_id"] = "piccolo-4b-q4"
         print(f"[ask-laya] quantized backend {args.gguf} at {base_url} "
               f"— ready at http://{args.host}:{args.port}", flush=True)
     else:
-        import laya
+        global laya_load
+        import laya as _laya_mod
+        laya_load = _laya_mod.load
         print("[ask-laya] loading laya model ...", flush=True)
         agent = laya.load(args.model, subfolder=args.subfolder if os.path.isdir(args.model) is False else None)
         _state["agent"] = agent
         _state["label"] = ("laya-multilingual" if (args.subfolder == "multilingual" and not os.path.isdir(args.model))
                            else os.path.basename(args.model.rstrip("/")))
+        _state["backend_id"] = ("laya-multilingual" if (args.subfolder == "multilingual" and not os.path.isdir(args.model))
+                                else os.path.basename(args.model.rstrip("/")))
+        if args.subfolder == "multilingual" and not os.path.isdir(args.model):
+            _LAYA_CACHE["convaiinnovations/laya:multilingual"] = agent
         print("[ask-laya] model on %s, warming up ..." % agent.device, flush=True)
         t0 = time.perf_counter()
         agent.predict("【用户提问】：测试预热", build_questions("测试", "yes_no", "", False))
