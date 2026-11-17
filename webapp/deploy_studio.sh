@@ -53,6 +53,7 @@ echo "== 4/6 同步代码（git push）"
 cd "$STUDIO_DIR"
 # 与本地 FastAPI 版保持同一套页面与 API：同步 server.py 与静态前端
 cp "$SCRIPT_DIR/server.py" server.py
+cp "$SCRIPT_DIR/gguf_backend.py" gguf_backend.py
 mkdir -p static && cp "$SCRIPT_DIR/static/"*.html static/
 git init -q 2>/dev/null || true
 git remote remove modelscope 2>/dev/null || true

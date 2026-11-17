@@ -745,6 +745,7 @@ def switch_backend(body: dict):
         if backend["kind"] == "gguf":
             from gguf_backend import get_quantized_agent
             agent = get_quantized_agent(backend["spec"])
+            _LAYA_CACHE.clear()      # 释放 laya 检查点驻留内存（小内存容器关键）
         else:
             agent = _load_laya_agent(backend["spec"])
     except Exception as e:  # noqa: BLE001
