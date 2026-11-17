@@ -108,7 +108,7 @@ webapp/
 
 ## 线上部署
 
-- **ModelScope 创空间**：<https://modelscope.cn/studios/zcgnull/ask-laya>（公开，免费 2vCPU/8G；现已改用中文微调模型 [zcgnull/laya-zh-v2](https://modelscope.cn/models/zcgnull/laya-zh-v2)，站内下载，CPU 裁决约 100-400ms）
+- **ModelScope 创空间**：<https://modelscope.cn/studios/zcgnull/ask-laya>（**默认后端已切换为 Piccolo-4B-Q4_K_M**：容器内原生编译补丁 llama-server（约 45 分钟，产物持久化于 /mnt/workspace，后续部署秒级复用）+ 站内下载 GGUF 后自动切换；页面下拉可切回 laya 基座；2vCPU 上单次裁决约 5s）（公开，免费 2vCPU/8G；现已改用中文微调模型 [zcgnull/laya-zh-v2](https://modelscope.cn/models/zcgnull/laya-zh-v2)，站内下载，CPU 裁决约 100-400ms）
 - **本地/FRP 公网**：<http://39.98.88.195:18081>（FastAPI 原味前端版，依赖本机在线）
 
 更新创空间代码：改 `studio/` 后重跑 `deploy_studio.sh` 即可（脚本已处理平台初始提交的合并）。
